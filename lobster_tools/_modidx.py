@@ -5,6 +5,9 @@ d = { 'settings': { 'branch': 'main',
                 'doc_host': 'https://n-petit.github.io',
                 'git_url': 'https://github.com/n-petit/lobster-tools',
                 'lib_path': 'lobster_tools'},
-  'syms': { 'lobster_tools.core': {'lobster_tools.core.foo': ('core.html#foo', 'lobster_tools/core.py')},
+  'syms': { 'lobster_tools.preprocessing': { 'lobster_tools.preprocessing.foo': ( 'preprocessing.html#foo',
+                                                                                  'lobster_tools/preprocessing.py')},
             'lobster_tools.transformation': { 'lobster_tools.transformation.foo': ( 'transformation.html#foo',
-                                                                                    'lobster_tools/transformation.py')}}}
+                                                                                    'lobster_tools/transformation.py')},
+            'lobster_tools.visualization': { 'lobster_tools.visualization.baz': ( 'visualization.html#baz',
+                                                                                  'lobster_tools/visualization.py')}}}
