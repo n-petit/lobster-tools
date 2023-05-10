@@ -1,0 +1,35 @@
+project:
+  type: website
+
+format:
+  html:
+    theme: flatly
+    css: styles.css
+    toc: true
+
+website:
+  twitter-card: true
+  open-graph: true
+  repo-actions: [issue]
+  navbar:
+    background: primary
+    search: true
+    left:
+      - text: "Get Started"
+        href: index.ipynb
+      - text: "Help"
+        menu:
+          - text: "Access Lobster Data"
+            icon: database
+            href: https://lobsterdata.com/
+          - text: "Report an Issue"
+            icon: bug
+            href: https://github.com/n-petit/lobster-tools/issues
+          
+    right:
+      - icon: github
+        href: "https://github.com/n-petit/lobster-tools"
+  sidebar:
+    style: floating
+
+metadata-files: [nbdev.yml, sidebar.yml]
