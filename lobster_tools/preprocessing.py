@@ -58,7 +58,7 @@ TickerTypes = Literal[None, "equity", "etf"]
 # | code-fold: true
 @dataclass
 class Data:
-    directory_path: str = "../data"  # path to data
+    directory_path: str = "/home/petit/Documents/code/lobster-tools/data"  # path to data
     ticker: str = "AMZN"
     date_range: Optional[str | tuple[str, str]] = None
     levels: Optional[int] = None
@@ -76,8 +76,7 @@ class Data:
         # ticker path
         tickers = glob.glob(f"{self.directory_path}/*")
         ticker_path = [t for t in tickers if self.ticker in t]
-        print(ticker_path)
-        # assert len(ticker_path) == 1
+        assert len(ticker_path) == 1
         self.ticker_path = ticker_path[0]
 
         # levels
