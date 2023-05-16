@@ -155,9 +155,12 @@ def aggregate_duplicates_(df: pd.DataFrame) -> pd.DataFrame:
 @dataclass
 class Lobster:
     "Lobster data class for a single symbol of Lobster data."
-    data: Data = Data()
+    data: Data | None = None
 
     def __post_init__(self):
+        if self.data is None:
+            self.data = Data()
+        
         if self.data.load in ["messages", "both"]:
             dfs = []
             for date, filepath in self.data.messages_paths.items():
