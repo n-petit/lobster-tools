@@ -20,7 +20,7 @@ website:
       - text: "Help"
         menu:
           - text: "Access Lobster Data"
-            icon: database
+            icon: database-fill
             href: https://lobsterdata.com/
           - text: "Report an Issue"
             icon: bug

@@ -3,5 +3,7 @@ website:
     contents:
       - index.ipynb
       - 00_preprocessing.ipynb
-      - 01_transformation.ipynb
-      - 02_visualization.ipynb
+      - 01_querying.ipynb
+      - 02_transformation.ipynb
+      - 03_visualisation.ipynb
+      - 04_flow_decomposition.ipynb

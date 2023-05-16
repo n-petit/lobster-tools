@@ -15,9 +15,96 @@ pip install -U lobster-tools
 #### conda
 
 ``` sh
-conda install -c conda-forge lobster-tools
+conda install -c conda-forge? lobster-tools
 ```
 
 </div>
 
 ## How to use
+
+``` python
+lobster = load_lobster(ticker="GE", date_range="2019-01-02", load="both")
+
+lobster.messages.head()
+```
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+&#10;    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+&#10;    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+
+|                               | event | order_id | size | price   | direction | ticker |
+|-------------------------------|-------|----------|------|---------|-----------|--------|
+| datetime                      |       |          |      |         |           |        |
+| 2019-01-02 03:08:36.253659641 | 7     | 0        | 0    | 0.0001  | -1        | GE     |
+| 2019-01-02 04:00:00.030994898 | 1     | 11818    | 400  | 7.0100  | 1         | GE     |
+| 2019-01-02 04:00:00.031785491 | 1     | 12390    | 53   | 10.9900 | -1        | GE     |
+| 2019-01-02 04:00:00.032366928 | 1     | 12838    | 60   | 11.9700 | -1        | GE     |
+| 2019-01-02 04:00:00.033012154 | 1     | 13226    | 60   | 10.9500 | -1        | GE     |
+
+</div>
+
+``` python
+(lobster.messages.pipe(query_by_event, event="execution").pipe(get_buy).head())
+```
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+&#10;    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+&#10;    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+
+|                               | event | order_id | size | price | direction | ticker |
+|-------------------------------|-------|----------|------|-------|-----------|--------|
+| datetime                      |       |          |      |       |           |        |
+| 2019-01-02 09:30:00.108595257 | 4     | 6837778  | 100  | 7.46  | 1         | GE     |
+| 2019-01-02 09:30:00.108595257 | 4     | 6837786  | 200  | 7.46  | 1         | GE     |
+| 2019-01-02 09:30:00.208825584 | 4     | 6885658  | 200  | 7.46  | 1         | GE     |
+| 2019-01-02 09:30:00.208825584 | 4     | 6885666  | 300  | 7.46  | 1         | GE     |
+| 2019-01-02 09:30:00.208825584 | 4     | 6885674  | 200  | 7.46  | 1         | GE     |
+
+</div>
+
+``` python
+lobster.book.head()
+```
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+&#10;    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+&#10;    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+
+|                               | ask_price_1 | ask_size_1 | bid_price_1 | bid_size_1 | ask_price_2 | ask_size_2 | bid_price_2 | bid_size_2 | ask_price_3 | ask_size_3 | ... | bid_price_8 | bid_size_8 | ask_price_9 | ask_size_9 | bid_price_9 | bid_size_9 | ask_price_10 | ask_size_10 | bid_price_10 | bid_size_10 |
+|-------------------------------|-------------|------------|-------------|------------|-------------|------------|-------------|------------|-------------|------------|-----|-------------|------------|-------------|------------|-------------|------------|--------------|-------------|--------------|-------------|
+| datetime                      |             |            |             |            |             |            |             |            |             |            |     |             |            |             |            |             |            |              |             |              |             |
+| 2019-01-02 03:08:36.253659641 | NaN         | NaN        | NaN         | NaN        | NaN         | NaN        | NaN         | NaN        | NaN         | NaN        | ... | NaN         | NaN        | NaN         | NaN        | NaN         | NaN        | NaN          | NaN         | NaN          | NaN         |
+| 2019-01-02 04:00:00.030994898 | NaN         | NaN        | 7.01        | 400.0      | NaN         | NaN        | NaN         | NaN        | NaN         | NaN        | ... | NaN         | NaN        | NaN         | NaN        | NaN         | NaN        | NaN          | NaN         | NaN          | NaN         |
+| 2019-01-02 04:00:00.031785491 | 10.99       | 53.0       | 7.01        | 400.0      | NaN         | NaN        | NaN         | NaN        | NaN         | NaN        | ... | NaN         | NaN        | NaN         | NaN        | NaN         | NaN        | NaN          | NaN         | NaN          | NaN         |
+| 2019-01-02 04:00:00.032366928 | 10.99       | 53.0       | 7.01        | 400.0      | 11.97       | 60.0       | NaN         | NaN        | NaN         | NaN        | ... | NaN         | NaN        | NaN         | NaN        | NaN         | NaN        | NaN          | NaN         | NaN          | NaN         |
+| 2019-01-02 04:00:00.033012154 | 10.95       | 60.0       | 7.01        | 400.0      | 10.99       | 53.0       | NaN         | NaN        | 11.97       | 60.0       | ... | NaN         | NaN        | NaN         | NaN        | NaN         | NaN        | NaN          | NaN         | NaN          | NaN         |
+
+<p>5 rows × 40 columns</p>
+</div>
