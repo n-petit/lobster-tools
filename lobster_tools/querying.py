@@ -5,13 +5,13 @@ __all__ = ['get_buy', 'get_sell', 'get_executions', 'get_halts', 'get_cancellati
            'load_etf_executions', 'get_equity', 'get_etf', 'query_by_direction', 'split_by_direction', 'query_by_event',
            'load_executions', 'query_ticker_type']
 
-# %% ../notebooks/01_querying.ipynb 5
+# %% ../notebooks/01_querying.ipynb 4
 from .preprocessing import *
 import pandas as pd
 from functools import partial
 import datetime
 
-# %% ../notebooks/01_querying.ipynb 6
+# %% ../notebooks/01_querying.ipynb 5
 def query_by_direction(
     df: pd.DataFrame,  # messages dataframe
     direction: str | Direction,  # direction, either "buy" or "sell"
@@ -36,7 +36,7 @@ def split_by_direction(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     "Returns a tuple of (buy, sell) DataFrames"
     return get_buy(df), get_sell(df)
 
-# %% ../notebooks/01_querying.ipynb 7
+# %% ../notebooks/01_querying.ipynb 6
 def query_by_event(
     df: pd.DataFrame,  # messages dataframe
     event: str | Event | EventGroup,  # event as str or `Event` or `EventGroup`.
@@ -75,7 +75,7 @@ def query_by_event(
         return df.query("event == @event")
 
 
-# %% ../notebooks/01_querying.ipynb 8
+# %% ../notebooks/01_querying.ipynb 7
 get_executions = partial(query_by_event, event_str="executions")
 get_halts = partial(query_by_event, event_str="halts")
 get_cancellations = partial(query_by_event, event_str="cancellations")
@@ -106,7 +106,7 @@ load_equity_executions = partial(load_executions, ticker_type="equity")
 load_etf_executions = partial(load_executions, ticker_type="etf")
 
 
-# %% ../notebooks/01_querying.ipynb 9
+# %% ../notebooks/01_querying.ipynb 8
 def query_ticker_type(df, ticker_type):
     return df.query("ticker_type == @ticker_type")
 
