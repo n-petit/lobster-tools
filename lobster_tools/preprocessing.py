@@ -58,8 +58,8 @@ TickerTypes = Literal[None, "equity", "etf"]
 # | code-fold: true
 @dataclass
 class Data:
-    directory_path: str = "/home/petit/Documents/data/lobster/csv"  # path to data
-    ticker: str = "AAPL"
+    directory_path: str = "../data"  # path to data
+    ticker: str = "AMZN"
     date_range: Optional[str | tuple[str, str]] = None
     levels: Optional[int] = None
     nrows: Optional[int] = None
@@ -76,7 +76,8 @@ class Data:
         # ticker path
         tickers = glob.glob(f"{self.directory_path}/*")
         ticker_path = [t for t in tickers if self.ticker in t]
-        assert len(ticker_path) == 1
+        print(ticker_path)
+        # assert len(ticker_path) == 1
         self.ticker_path = ticker_path[0]
 
         # levels
@@ -263,7 +264,7 @@ class Lobster:
 
             self.book = df
 
-        # data cleaning on messages done now, as book infers times from messages file
+        # data cleaning on messages done only now, as book infers times from messages file
         # aggregate duplicates 
         if self.data.aggregate_duplicates:
             self.messages = aggregate_duplicates_(self.messages)
