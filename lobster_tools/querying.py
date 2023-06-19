@@ -11,6 +11,7 @@ import pandas as pd
 from functools import partial
 import datetime
 
+
 # %% ../notebooks/01_querying.ipynb 5
 def query_by_direction(
     df: pd.DataFrame,  # messages dataframe
@@ -35,6 +36,7 @@ get_sell = partial(query_by_direction, direction="sell")
 def split_by_direction(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     "Returns a tuple of (buy, sell) DataFrames"
     return get_buy(df), get_sell(df)
+
 
 # %% ../notebooks/01_querying.ipynb 6
 def query_by_event(
@@ -74,16 +76,13 @@ def query_by_event(
     elif isinstance(event, int):
         return df.query("event == @event")
 
-
 # %% ../notebooks/01_querying.ipynb 7
-get_executions = partial(query_by_event, event_str="executions")
-get_halts = partial(query_by_event, event_str="halts")
-get_cancellations = partial(query_by_event, event_str="cancellations")
+get_executions = partial(query_by_event, event="executions")
+get_halts = partial(query_by_event, event="halts")
+get_cancellations = partial(query_by_event, event="cancellations")
 
 
-def load_executions(
-    date_range: str, tickers: list[str], ticker_type: str
-) -> pd.DataFrame:
+def load_executions(date_range: str, tickers: list[str], ticker_type: str) -> pd.DataFrame:
     ticker_execution_dfs = []
     for ticker in tickers:
         ticker_execution_dfs.append(
@@ -96,15 +95,12 @@ def load_executions(
             ).messages.pipe(get_executions)
         )
 
-    tickers_execution = pd.concat(ticker_execution_dfs).astype(
-        dtype={"ticker": "category"}
-    )
+    tickers_execution = pd.concat(ticker_execution_dfs).astype(dtype={"ticker": "category"})
     return tickers_execution
 
 
 load_equity_executions = partial(load_executions, ticker_type="equity")
 load_etf_executions = partial(load_executions, ticker_type="etf")
-
 
 # %% ../notebooks/01_querying.ipynb 8
 def query_ticker_type(df, ticker_type):
@@ -113,4 +109,3 @@ def query_ticker_type(df, ticker_type):
 
 get_equity = partial(query_ticker_type, ticker_type="equity")
 get_etf = partial(query_ticker_type, ticker_type="etf")
-
