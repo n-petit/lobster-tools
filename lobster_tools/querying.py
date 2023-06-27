@@ -9,7 +9,6 @@ __all__ = ['get_buy', 'get_sell', 'get_executions', 'get_halts', 'get_cancellati
 from .preprocessing import *
 import pandas as pd
 from functools import partial
-import datetime
 
 
 # %% ../notebooks/01_querying.ipynb 5
