@@ -14,6 +14,7 @@ from functools import partial
 # %% ../notebooks/01_querying.ipynb 5
 def query_by_direction(
     df: pd.DataFrame,  # messages dataframe
+    *,
     direction: str | Direction,  # direction, either "buy" or "sell"
 ) -> pd.DataFrame:
     """Query a messages dataframe on the direction column."""
@@ -40,6 +41,7 @@ def split_by_direction(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
 # %% ../notebooks/01_querying.ipynb 6
 def query_by_event(
     df: pd.DataFrame,  # messages dataframe
+    *,
     event: str | Event | EventGroup,  # event as str or `Event` or `EventGroup`.
 ) -> pd.DataFrame:
     """Query a messages dataframe on the event column."""
