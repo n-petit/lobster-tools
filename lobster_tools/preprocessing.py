@@ -36,7 +36,7 @@ class Event(enum.Enum):
 
 @enum.unique
 class EventGroup(enum.Enum):
-    EXECUTIONS = [Event.EXECUTION.value, Event.HIDDEN_EXECUTION.value]
+    EXECUTIONS = [Event.EXECUTION.value, Event.HIDDEN_EXECUTION.value, Event.CROSS_TRADE.value]
     HALTS = [
         Event.TRADING_HALT.value,
         Event.RESUME_QUOTE.value,
@@ -298,6 +298,7 @@ class Lobster:
 # %% ../notebooks/00_preprocessing.ipynb 21
 def load_lobster(**kwargs):
     """Load `Lobster` object from csv data."""
+    # TODO remove this function and turn Lobster into callable class
     data = Data(**kwargs)
     lobster = Lobster(data)
 
