@@ -2,11 +2,10 @@
 
 # %% auto 0
 __all__ = ['tolerances', 'resample_freq', 'equities', 'etfs', 'date_range', 'str_to_nanoseconds', 'col_to_dtype', 'features',
-           'all_index', 'empty_series', 'aggregate_before_after', 'aggregate_same_sign_opposite_sign',
-           'aggregate_before_after_no_drop', 'aggregate_same_sign_opposite_sign_no_drop', 'tag_functions', 'get_times',
-           'str_to_time', 'add_neighbors', 'drop_all_neighbor_cols', 'col_to_dtype_inputing_mapping',
+           'all_index', 'empty_series', 'aggregate_before_after', 'aggregate_same_sign_opposite_sign', 'tag_functions',
+           'get_times', 'str_to_time', 'add_neighbors', 'drop_all_neighbor_cols', 'col_to_dtype_inputing_mapping',
            'multi_index_to_single_index', 'groupby_index_to_series', 'compute_features', 'append_features',
-           'count_non_null', 'aggregate_columns', 'add_arb_tag', 'drop_features', 'split_isolated_non_isolated', 'ofi',
+           'count_non_null', 'marginalise', 'add_arb_tag', 'drop_features', 'split_isolated_non_isolated', 'ofi',
            'ofis', 'not_ofi', 'compute_ofi']
 
 # %% ../notebooks/04_flow_decomposition.ipynb 4
@@ -15,7 +14,7 @@ import numpy as np
 from sklearn.neighbors import KDTree
 from numpy.typing import NDArray
 from functools import partial
-from typing import Optional
+from typing import Optional, Literal, get_args
 from itertools import product
 
 # %% ../notebooks/04_flow_decomposition.ipynb 5
@@ -171,7 +170,7 @@ def compute_features(
 
 
 # %% ../notebooks/04_flow_decomposition.ipynb 10
-def append_features(etf_executions: pd.DataFrame, equity_executions) -> pd.DataFrame:
+def append_features(etf_executions: pd.DataFrame, equity_executions: pd.DataFrame) -> pd.DataFrame:
     "Note that this function is not inplace."
     # infer tolerances from column names
     column_names = etf_executions.filter(regex="neighbors").columns.values.tolist()
@@ -203,60 +202,39 @@ def count_non_null(df, tolerance):
     return df[f"_{tolerance}_neighbors"].notnull().sum()
 
 # %% ../notebooks/04_flow_decomposition.ipynb 12
-def aggregate_columns(df: pd.DataFrame, keywords: list[str], **kwargs) -> None:
-    """Aggregate columns of dataframe by summing over columns with keywords."""
-    # Note to self. This design is slightly brittle in that it assumes properties of the naming columns.
-    # I guess I should do a split and based on the order of the split, I do stuff. I should also
-    # write some validation in this function. I.e, after splitting the 2nd element should be
-    # an element of the set {notional, num_trades, other features...}, and the 3rd element should be
-    # an element of the set {ss, os, bf, af} etc etc
+def marginalise(df: pd.DataFrame, 
+                over: Literal["same_sign/opposite_sign", "before/after"], # which feature to marginalise over 
+                drop=False # drop or keep columns that were marginalised over
+                ) -> pd.DataFrame:
+    """Marginalise over a specific feature split by summing columns together. Compute marginalised features from dataframe by summing over columns with keywords."""
     
     # TODO think whether inplace is better
     df = df.copy()
 
-    keyword0, keyword1 = keywords
-
-    full_word_to_keyword = {
-        "same_sign": "ss",
-        "opposite_sign": "os",
-        "before": "bf",
-        "after": "af",
-    }
-    if keyword0 in full_word_to_keyword.keys():
-        keyword0 = full_word_to_keyword[keyword0]
-        keyword1 = full_word_to_keyword[keyword1]
-
-    if keyword0[0] != "_":
-        keyword0 = "_" + keyword0
-        keyword1 = "_" + keyword1
-
+    match over:
+        case "same_sign/opposite_sign":
+            keyword0, keyword1 = "_ss", "_os"
+        case "before/after":
+            keyword0, keyword1 = "_bf", "_af"
+        case _:
+            # TODO figure out how to do: f"over must be keywords must be one of {get_args(over)}"
+            raise ValueError(f"invalid 'over' keyword")
+    
     for col_name in df.columns:
         if keyword0 in col_name:
             base_col_name = col_name.replace(keyword0, "")
+            opposite_col_name = col_name.replace(keyword0, keyword1)
+            df[base_col_name] = df[col_name] + df[opposite_col_name]
             
-            # doesn't account for ordering
-            col0 = base_col_name + keyword0
-            col1 = base_col_name + keyword1
-            df[base_col_name] = df[col0] + df[col1]
-            
-            # BUG
-            # is this correct? assert that columns only contains one value
-            # col0 = df.filter(regex=base_col_name).filter(regex=keyword0).columns[0]
-            # col1 = df.filter(regex=base_col_name).filter(regex=keyword1).columns[0]
-            # df[base_col_name] = df.filter(regex=base_col_name).filter(regex=keyword0) + df.filter(regex=base_col_name).filter(regex=keyword1)
-            
-            if kwargs.get("drop", True):
-                df.drop(columns=[col0, col1], inplace=True)
-    # TODO change to None if inplace
+        # TODO sanity check this
+            if drop:
+                df.drop(columns=[col_name, opposite_col_name], inplace=True)
+    
     return df
 
-
 # %% ../notebooks/04_flow_decomposition.ipynb 13
-aggregate_before_after = partial(aggregate_columns, keywords=["before", "after"])
-aggregate_same_sign_opposite_sign = partial(aggregate_columns, keywords=["same_sign", "opposite_sign"])
-
-aggregate_before_after_no_drop = partial(aggregate_columns, keywords=["before", "after"], drop=False)
-aggregate_same_sign_opposite_sign_no_drop = partial(aggregate_columns, keywords=["same_sign", "opposite_sign"], drop=False)
+aggregate_before_after = partial(marginalise, over="before/after", drop=False)
+aggregate_same_sign_opposite_sign = partial(marginalise, over="same_sign/opposite_sign", drop=False)
 
 # %% ../notebooks/04_flow_decomposition.ipynb 14
 def add_arb_tag(df: pd.DataFrame, tag_functions: list[str]) -> None:
