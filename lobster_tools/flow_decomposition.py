@@ -6,7 +6,8 @@ __all__ = ['tolerances', 'resample_freq', 'equities', 'etfs', 'date_range', 'str
            'get_times', 'str_to_time', 'add_neighbors', 'drop_all_neighbor_cols', 'col_to_dtype_inputing_mapping',
            'multi_index_to_single_index', 'groupby_index_to_series', 'compute_features', 'append_features',
            'count_non_null', 'marginalise', 'add_arb_tag', 'drop_features', 'split_isolated_non_isolated', 'ofi',
-           'ofis', 'not_ofi', 'compute_ofi']
+           'ofis', 'not_ofi', 'compute_ofi', 'resample_mid', 'restrict_common_index', 'markout_returns',
+           'clip_for_markout']
 
 # %% ../notebooks/04_flow_decomposition.ipynb 4
 import pandas as pd
@@ -382,3 +383,60 @@ def compute_ofi(
     return ofi_df
 
 
+
+# %% ../notebooks/04_flow_decomposition.ipynb 24
+def resample_mid(df: pd.DataFrame, resample_freq="5T"):
+    """Resample mid price from book dataframe."""
+
+    # TODO: tests
+    # TODO: black formatter collapsing chained methods
+    return (df
+            .resample(resample_freq, label="right")
+            .last()
+            .eval("mid = bid_price_1 + (ask_price_1 - bid_price_1) / 2")
+            ["mid"]
+    )
+
+# %% ../notebooks/04_flow_decomposition.ipynb 25
+def restrict_common_index(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+    """Restrict two dataframes to their common index."""
+    common_index = df1.index.intersection(df2.index)
+    return df1.loc[common_index], df2.loc[common_index]
+
+# %% ../notebooks/04_flow_decomposition.ipynb 26
+def markout_returns(
+    df,  # dataframe to infer times to markout from
+    markouts: list[str],  # list of markouts to compute returns for
+) -> pd.DataFrame:
+    # TODO: markouts of string literals also?
+    markout_returns = pd.DataFrame(index=df.index, data={f"_{markout}": df.index + pd.Timedelta(markout) for markout in markouts})
+    return markout_returns
+
+# %% ../notebooks/04_flow_decomposition.ipynb 27
+def clip_for_markout(df, max_markout):
+    end = max(df.index) - pd.Timedelta(max_markout)
+    end = end.time()
+    return clip_times(df, end=end)
+
+# %% ../notebooks/04_flow_decomposition.ipynb 28
+# TODO fix this
+# def compute_returns():
+#     index = clip_for_markout(etf_executions.resample(resample_freq, label="right").last(), max_markout=max_markout).index
+
+#     returns = {}
+#     for ticker in etfs:
+#         df = pd.DataFrame(index=index)
+#         for markout in ["0S"] + markouts:
+#             df[f"_{markout}"] = mids.loc[df.index + pd.Timedelta(markout), ticker].values
+
+#         for markout in markouts:
+#             df.eval(f"return_{markout} = (_{markout} / _0S ) - 1", inplace=True)
+
+#         df["return_contemp"] = mids[ticker].resample("5T").first().pct_change()
+#         df_returns = df.filter(regex="return")
+#         df_returns.columns = [column.replace("return_", "") for column in df_returns.columns]
+#         df_returns.columns = [("_" + column if column[0].isdigit() else column) for column in df_returns.columns ]
+#         returns[ticker] = df_returns
+#     return returns
+
+# returns = compute_returns()
