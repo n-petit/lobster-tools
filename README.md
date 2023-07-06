@@ -12,12 +12,6 @@
 pip install -U lobster-tools
 ```
 
-#### conda
-
-``` sh
-conda install -c conda-forge? lobster-tools
-```
-
 </div>
 
 ## How to use
