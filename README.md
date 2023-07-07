@@ -15,19 +15,6 @@ lobster = load_lobster(ticker="AMZN", date_range="2012-06-21", load="both")
 lobster.messages.head()
 ```
 
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-&#10;    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-&#10;    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-
 |                               | event | order_id | size | price  | direction |
 |-------------------------------|-------|----------|------|--------|-----------|
 | datetime                      |       |          |      |        |           |
@@ -37,7 +24,7 @@ lobster.messages.head()
 | 2012-06-21 09:30:00.189607670 | 1     | 11534792 | 100  | 223.75 | 1         |
 | 2012-06-21 09:30:00.189607670 | 1     | 1365373  | 13   | 224.00 | -1        |
 
-</div>
+<p>5 rows × 5 columns</p>
 
 ``` python
 (lobster.messages.pipe(query_by_event, event="execution").pipe(get_buy).head())
