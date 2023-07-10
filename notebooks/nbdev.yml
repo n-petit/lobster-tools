@@ -4,6 +4,6 @@ project:
 website:
   title: "lobster-tools"
   site-url: "https://n-petit.github.io/lobster-tools"
-  description: "Python package for working with [LOBSTER data](https://lobsterdata.com/), the Nasdaq limit order book data."
+  description: "Python package for working with LOBSTER data, the Nasdaq limit order book data."
   repo-branch: main
   repo-url: "https://github.com/n-petit/lobster-tools"
