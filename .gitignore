@@ -155,3 +155,6 @@ Makefile
 
 # private folder
 private
+
+# ignore scripts folder for now
+scripts
