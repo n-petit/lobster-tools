@@ -2,7 +2,7 @@
 
 # %% auto 0
 __all__ = ['CONTEXT_SETTINGS', 'another_example_change_to_test_precommit_hook', 'testa', 'cli_example', 'Event', 'EventGroup',
-           'Direction', 'Data', 'Lobster', 'load_lobster', 'load_lobsters']
+           'Direction', 'Data', 'clip_df_times', 'Lobster', 'load_lobster', 'load_lobsters']
 
 # %% ../notebooks/00_preprocessing.ipynb 4
 import enum
@@ -183,7 +183,7 @@ def _aggregate_duplicates(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # %% ../notebooks/00_preprocessing.ipynb 22
-def _clip_df_times(df: pd.DataFrame, start: datetime.time | None = None, end: datetime.time | None = None) -> pd.DataFrame:
+def clip_df_times(df: pd.DataFrame, start: datetime.time | None = None, end: datetime.time | None = None) -> pd.DataFrame:
         """Clip a dataframe or lobster object to a time range."""
         # TODO: improve this function? with the 4 if statements lol, i guess i could clip the index twice and have two if statements
         if start and end:
@@ -195,7 +195,7 @@ def _clip_df_times(df: pd.DataFrame, start: datetime.time | None = None, end: da
         else:
             raise ValueError("start and end cannot both be None")
         
-_clip_df_trading_hours = partial(_clip_df_times, start=datetime.time(9, 30), end=datetime.time(16, 0))
+_clip_df_trading_hours = partial(clip_df_times, start=datetime.time(9, 30), end=datetime.time(16, 0))
 
 # %% ../notebooks/00_preprocessing.ipynb 23
 # | code-fold: true
