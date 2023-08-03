@@ -2,8 +2,8 @@
 
 # %% auto 0
 __all__ = ['tolerances', 'resample_freq', 'equities', 'etfs', 'date_range', 'str_to_nanoseconds', 'col_to_dtype', 'features',
-           'all_index', 'empty_series', 'aggregate_before_after', 'aggregate_same_sign_opposite_sign', 'tag_functions',
-           'get_times', 'str_to_time', 'add_neighbors', 'drop_all_neighbor_cols', 'col_to_dtype_inputing_mapping',
+           'all_index', 'empty_series', 'aggregate_before_after', 'aggregate_same_sign_opposite_sign', 'get_times',
+           'str_to_time', 'add_neighbors', 'drop_all_neighbor_cols', 'col_to_dtype_inputing_mapping',
            'multi_index_to_single_index', 'groupby_index_to_series', 'compute_features', 'append_features',
            'count_non_null', 'marginalise', 'add_arb_tag', 'drop_features', 'split_isolated_non_isolated', 'ofi',
            'ofis', 'not_ofi', 'compute_ofi', 'resample_mid', 'restrict_common_index', 'markout_returns',
@@ -249,15 +249,15 @@ def add_arb_tag(df: pd.DataFrame, tag_functions: list[str]) -> None:
 
 
 # manually specify tag function strings
-tag_functions = [
-    "_500ms_arb_tag = _500ms_notional_os > 0",
-    "_300ms_arb_tag = _300ms_notional_os > 0",
-]
+# tag_functions = [
+#     "_500ms_arb_tag = _500ms_notional_os > 0",
+#     "_300ms_arb_tag = _300ms_notional_os > 0",
+# ]
 
-# generate tag function strings
-tag_functions = [
-    f"_{tolerance}_arb_tag = _{tolerance}_notional_os > 0" for tolerance in tolerances
-]
+# # generate tag function strings
+# tag_functions = [
+#     f"_{tolerance}_arb_tag = _{tolerance}_notional_os > 0" for tolerance in tolerances
+# ]
 
 # %% ../notebooks/04_flow_decomposition.ipynb 15
 def drop_features(df: pd.DataFrame) -> None:
@@ -412,8 +412,7 @@ def markout_returns(
     markouts: list[str],  # list of markouts to compute returns for
 ) -> pd.DataFrame:
     # TODO: markouts of string literals also?
-    markout_returns = pd.DataFrame(index=df.index, data={f"_{markout}": df.index + pd.Timedelta(markout) for markout in markouts})
-    return markout_returns
+    return pd.DataFrame(index=df.index, data={f"_{markout}": df.index + pd.Timedelta(markout) for markout in markouts})
 
 # %% ../notebooks/04_flow_decomposition.ipynb 27
 def clip_for_markout(df, max_markout):
