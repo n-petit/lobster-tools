@@ -27,12 +27,15 @@ date_range = "2019-01-02"
 
 # %% ../notebooks/04_flow_decomposition.ipynb 6
 def get_times(df: pd.DataFrame) -> NDArray[np.datetime64]:
+    #TODO better way to rewrite this?
     if df.index.values.dtype == "datetime64[ns]":
         return df.index.values.reshape(-1, 1)
+    if "datetime" not in df.columns:
+        raise ValueError("No datetime column found in df, or datetimes in index")
+    if df["datetime"].dtype != "datetime64[ns]":
+        raise ValueError("datetime column is not datetime64[ns] dtype")
     else:
-        assert df["datetime"].dtype == "datetime64[ns]"
         return df["datetime"].values.reshape(-1, 1)
-
 
 def str_to_time(time: str, convert_to: str) -> int:
     return pd.Timedelta(time) / pd.Timedelta(1, unit=convert_to)

@@ -114,18 +114,25 @@ class Data:
         # ticker path
         tickers = glob.glob(f"{self.directory_path}/*")
         ticker_path = [t for t in tickers if self.ticker in t]
-        assert len(ticker_path) == 1
+        if len(ticker_path) != 1:
+            raise ValueError(f"Expected exactly 1 directory with name {self.ticker}")
+        # assert len(ticker_path) == 1
         self.ticker_path = ticker_path[0]
 
         # levels
         if not self.levels:
             self.levels = int(self.ticker_path.split("_")[-1])
-            assert self.levels >= 1
+            
+            if self.levels < 1:
+                raise ValueError(f"Invalid number of levels: {self.levels}")
+            # assert self.levels >= 1
 
         # infer date range from ticker folder name
         if not self.date_range:
             self.date_range = tuple(re.findall(pattern=r"\d\d\d\d-\d\d-\d\d", string=self.ticker_path))
-            assert len(self.date_range) == 2
+            if len(self.date_range) != 2:
+                raise ValueError(f"Expected exactly 2 dates in regex match of in {self.ticker_path}")
+            # assert len(self.date_range) == 2
 
         # book and message paths
         tickers = glob.glob(f"{self.ticker_path}/*")
@@ -159,7 +166,9 @@ class Data:
             date_path_dict = {}
             for date in self.dates:
                 filter_date_tickers = list(filter(lambda x: date in x, filter_keyword_tickers))
-                assert len(filter_date_tickers) == 1
+                if len(filter_date_tickers) != 1:
+                    raise ValueError(f"Expected exactly 1 match for {date}")
+                # assert len(filter_date_tickers) == 1
                 date_path_dict[date] = os.path.join(self.ticker_path, filter_date_tickers[0])
             return date_path_dict
 
@@ -237,7 +246,9 @@ class Lobster:
             df = pd.concat(dfs)
 
             
-            assert df.loc[df.event.eq(Event.TRADING_HALT.value), "direction"].eq(-1).all()
+            if not df.loc[df.event.eq(Event.TRADING_HALT.value), "direction"].eq(-1).all():
+                raise ValueError("All trading halts must have direction -1")
+            # assert df.loc[df.event.eq(Event.TRADING_HALT.value), "direction"].eq(-1).all()
             df.loc[df.event.eq(Event.TRADING_HALT.value), "direction"] = 0
 
             # process trading halts
@@ -264,10 +275,16 @@ class Lobster:
 
             if self.data.ticker_type:
                 # TODO change to get Literal Values from args?
-                assert self.data.ticker_type in [
+
+                if self.data.ticker_type not in [
                     "equity",
                     "etf",
-                ], "ticker_type must be either `equity` or `etf`"
+                ]:
+                    raise ValueError("ticker_type must be either `equity` or `etf`")
+                # assert self.data.ticker_type in [
+                #     "equity",
+                #     "etf",
+                # ], "ticker_type must be either `equity` or `etf`"
                 df = df.assign(ticker_type=self.data.ticker_type).astype(
                     dtype={"ticker_type": pd.CategoricalDtype(categories=["equity", "etf"])}
                 )
@@ -352,7 +369,9 @@ def load_lobster(**kwargs):
 # %% ../notebooks/00_preprocessing.ipynb 26
 def load_lobsters(**kwargs):
     """Load multiple `Lobster` objects into list."""
-    assert isinstance(kwargs["ticker"], list), "load lobsters is used for loading multiple tickers"
+    if not isinstance(kwargs["ticker"], list):
+        raise ValueError("load lobsters is used for loading multiple tickers")
+    # assert isinstance(kwargs["ticker"], list), "load lobsters is used for loading multiple tickers"
     tickers = kwargs.pop("ticker")
 
     lobsters = []
