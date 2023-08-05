@@ -66,9 +66,6 @@ def add_neighbors(
             lambda x: None if x.size == 0 else x
         )
 
-        # etf_executions[f"_{tolerance_str}_neighbors"] = pd.Series(etf_executions[f"_{tolerance_str}_neighbors"], dtype="Sparse[object]")
-        return None
-
     if isinstance(tolerance, str):
         _add_neighbors_col(etf_executions, tolerance)
 
@@ -83,7 +80,6 @@ def drop_all_neighbor_cols(df: pd.DataFrame):
     "Drop neighbor columns inplace."
     neighbor_column_names = df.filter(regex="neighbors").columns
     df.drop(columns=neighbor_column_names, inplace=True)
-    return None
 
 # %% ../notebooks/04_flow_decomposition.ipynb 8
 def col_to_dtype_inputing_mapping(col, col_to_dtype_dict):
