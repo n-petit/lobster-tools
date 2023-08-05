@@ -261,7 +261,7 @@ class Lobster:
 
             # TODO: change from apply?
             df.loc[df.event.eq(Event.TRADING_HALT.value), "event"] = df.loc[df.event.eq(Event.TRADING_HALT.value), "price"].apply(
-                lambda x: _trading_halt_type(x)
+                _trading_halt_type
             )
             
             # use 0 as NaN for size and direction
