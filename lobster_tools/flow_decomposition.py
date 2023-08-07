@@ -10,13 +10,15 @@ __all__ = ['tolerances', 'resample_freq', 'equities', 'etfs', 'date_range', 'str
            'clip_for_markout']
 
 # %% ../notebooks/04_flow_decomposition.ipynb 4
-import pandas as pd
-import numpy as np
-from sklearn.neighbors import KDTree
-from numpy.typing import NDArray
 from functools import partial
-from typing import Optional, Literal, get_args
 from itertools import product
+from typing import Literal, Optional, get_args
+
+import numpy as np
+import pandas as pd
+from numpy.typing import NDArray
+from sklearn.neighbors import KDTree
+
 
 # %% ../notebooks/04_flow_decomposition.ipynb 5
 tolerances = ["500us", "1ms"]
