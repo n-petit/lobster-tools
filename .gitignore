@@ -153,6 +153,9 @@ checklink/cookies.txt
 # Makefile
 Makefile
 
+# PyPI API token
+.pypirc
+
 # private folder
 private
 
