@@ -68,9 +68,6 @@ def add_neighbors(
             lambda x: None if x.size == 0 else x
         )
 
-        # etf_executions[f"_{tolerance_str}_neighbors"] = pd.Series(etf_executions[f"_{tolerance_str}_neighbors"], dtype="Sparse[object]")
-        return None
-
     if isinstance(tolerance, str):
         _add_neighbors_col(etf_executions, tolerance)
 
@@ -85,7 +82,7 @@ def drop_all_neighbor_cols(df: pd.DataFrame):
     "Drop neighbor columns inplace."
     neighbor_column_names = df.filter(regex="neighbors").columns
     df.drop(columns=neighbor_column_names, inplace=True)
-    return None
+
 
 # %% ../notebooks/04_flow_decomposition.ipynb 8
 def col_to_dtype_inputing_mapping(col, col_to_dtype_dict):
@@ -391,16 +388,7 @@ def compute_ofi(
 
 # %% ../notebooks/04_flow_decomposition.ipynb 24
 def resample_mid(df: pd.DataFrame, resample_freq="5T"):
-    """Resample mid price from book dataframe."""
-
-    # TODO: tests
-    # TODO: black formatter collapsing chained methods
-    return (df
-            .resample(resample_freq, label="right")
-            .last()
-            .eval("mid = bid_price_1 + (ask_price_1 - bid_price_1) / 2")
-            ["mid"]
-    )
+    return df.resample(resample_freq, label="right").last().eval("mid = bid_price_1 + (ask_price_1 - bid_price_1) / 2")["mid"]
 
 # %% ../notebooks/04_flow_decomposition.ipynb 25
 def restrict_common_index(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:

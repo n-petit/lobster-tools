@@ -3,7 +3,7 @@
 # %% auto 0
 __all__ = ['Event', 'EventGroup', 'Direction', 'Data', 'clip_df_times', 'Lobster', 'load_lobster', 'load_lobsters']
 
-# %% ../notebooks/00_preprocessing.ipynb 4
+# %% ../notebooks/00_preprocessing.ipynb 5
 import datetime
 import enum
 import glob
@@ -11,14 +11,12 @@ import os
 import re
 from dataclasses import dataclass
 from functools import partial
-from pprint import pprint
 from typing import Literal, Optional, Self, TypeVar, get_args
 
 import numpy as np
 import pandas as pd
 
-
-# %% ../notebooks/00_preprocessing.ipynb 5
+# %% ../notebooks/00_preprocessing.ipynb 6
 @enum.unique
 class Event(enum.Enum):
     "A class to represent the event type of a LOBSTER message."
@@ -45,18 +43,18 @@ class EventGroup(enum.Enum):
     ]
     CANCELLATIONS = [Event.CANCELLATION.value, Event.DELETION.value]
 
-# %% ../notebooks/00_preprocessing.ipynb 11
+# %% ../notebooks/00_preprocessing.ipynb 12
 @enum.unique
 class Direction(enum.Enum):
     BUY = 1
     SELL = -1
 
-# %% ../notebooks/00_preprocessing.ipynb 15
+# %% ../notebooks/00_preprocessing.ipynb 16
 # | code-fold: true
 @dataclass
 class Data:
-    directory_path: str | None = None # path to data
-    ticker: str | None = None # ticker name
+    directory_path: str | None = None  # path to data
+    ticker: str | None = None  # ticker name
     date_range: Optional[str | tuple[str, str]] = None
     levels: Optional[int] = None
     nrows: Optional[int] = None
@@ -80,7 +78,7 @@ class Data:
             raise ValueError(f"Invalid load type: {self.load}")
         if self.ticker_type not in (None, "equity", "etf"):
             raise ValueError(f"Invalid ticker type: {self.ticker_type}")
-        
+
         # ticker path
         tickers = glob.glob(f"{self.directory_path}/*")
         ticker_path = [t for t in tickers if self.ticker in t]
@@ -92,7 +90,7 @@ class Data:
         # levels
         if not self.levels:
             self.levels = int(self.ticker_path.split("_")[-1])
-            
+
             if self.levels < 1:
                 raise ValueError(f"Invalid number of levels: {self.levels}")
             # assert self.levels >= 1
@@ -110,7 +108,8 @@ class Data:
 
         if isinstance(self.date_range, tuple):
             # get all dates in folder
-            dates = set([re.findall(pattern=r"\d\d\d\d-\d\d-\d\d", string=file)[0] for file in tickers_end])
+            dates = {re.findall(pattern=r"\d\d\d\d-\d\d-\d\d", string=file)[0] for file in tickers_end}
+            # dates = set([re.findall(pattern=r"\d\d\d\d-\d\d-\d\d", string=file)[0] for file in tickers_end])
             # filter for dates within specified range
             dates = sorted(
                 list(
@@ -144,39 +143,39 @@ class Data:
 
         self.book_paths = _create_date_to_path_dict("book")
         self.messages_paths = _create_date_to_path_dict("message")
-        
+
         if self.load in ("book", "both"):
             self.load_book = True
         if self.load in ("messages", "both"):
             self.load_messages = True
 
-# %% ../notebooks/00_preprocessing.ipynb 16
+# %% ../notebooks/00_preprocessing.ipynb 17
 def _aggregate_duplicates(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df.reset_index(inplace=True)
-    duplicates = df.duplicated(subset=df.columns.difference(['size']), keep=False)
-    df.loc[duplicates, 'size'] = df.loc[duplicates, 'size'].groupby(df.loc[duplicates].datetime).transform('sum')
-    df.drop_duplicates(subset=df.columns.difference(['size']), inplace=True)
-    df.set_index('datetime', inplace=True, drop=True)
+    duplicates = df.duplicated(subset=df.columns.difference(["size"]), keep=False)
+    df.loc[duplicates, "size"] = df.loc[duplicates, "size"].groupby(df.loc[duplicates].datetime).transform("sum")
+    df.drop_duplicates(subset=df.columns.difference(["size"]), inplace=True)
+    df.set_index("datetime", inplace=True, drop=True)
     return df
 
-
-# %% ../notebooks/00_preprocessing.ipynb 18
+# %% ../notebooks/00_preprocessing.ipynb 19
 def clip_df_times(df: pd.DataFrame, start: datetime.time | None = None, end: datetime.time | None = None) -> pd.DataFrame:
-        """Clip a dataframe or lobster object to a time range."""
-        # TODO: improve this function? with the 4 if statements lol, i guess i could clip the index twice and have two if statements
-        if start and end:
-            return df.iloc[(df.index.time >= start) & (df.index.time < end)]
-        elif start:
-            return df.iloc[df.index.time >= start]
-        elif end:
-            return df.iloc[df.index.time < end]
-        else:
-            raise ValueError("start and end cannot both be None")
-        
+    """Clip a dataframe or lobster object to a time range."""
+    # TODO: improve this function? with the 4 if statements lol, i guess i could clip the index twice and have two if statements
+    if start and end:
+        return df.iloc[(df.index.time >= start) & (df.index.time < end)]
+    elif start:
+        return df.iloc[df.index.time >= start]
+    elif end:
+        return df.iloc[df.index.time < end]
+    else:
+        raise ValueError("start and end cannot both be None")
+
+
 _clip_df_trading_hours = partial(clip_df_times, start=datetime.time(9, 30), end=datetime.time(16, 0))
 
-# %% ../notebooks/00_preprocessing.ipynb 19
+# %% ../notebooks/00_preprocessing.ipynb 20
 # | code-fold: true
 @dataclass
 class Lobster:
@@ -186,7 +185,7 @@ class Lobster:
     def __post_init__(self):
         if self.data is None:
             self.data = Data()
-        
+
         if self.data.load_messages:
             dfs = []
             for date, filepath in self.data.messages_paths.items():
@@ -215,7 +214,6 @@ class Lobster:
                 dfs.append(df)
             df = pd.concat(dfs)
 
-            
             if not df.loc[df.event.eq(Event.TRADING_HALT.value), "direction"].eq(-1).all():
                 raise ValueError("All trading halts must have direction -1")
             # assert df.loc[df.event.eq(Event.TRADING_HALT.value), "direction"].eq(-1).all()
@@ -230,10 +228,8 @@ class Lobster:
                 }[price]
 
             # TODO: change from apply?
-            df.loc[df.event.eq(Event.TRADING_HALT.value), "event"] = df.loc[df.event.eq(Event.TRADING_HALT.value), "price"].apply(
-                lambda x: _trading_halt_type(x)
-            )
-            
+            df.loc[df.event.eq(Event.TRADING_HALT.value), "event"] = df.loc[df.event.eq(Event.TRADING_HALT.value), "price"].apply(_trading_halt_type)
+
             # use 0 as NaN for size and direction
             df.loc[
                 df.event.isin(EventGroup.HALTS.value),
@@ -311,11 +307,11 @@ class Lobster:
         if hasattr(self, "messages"):
             self.messages = _clip_df_trading_hours(self.messages)
         return self
-    
+
     def aggregate_duplicates(self) -> Self:
         self.messages = _aggregate_duplicates(self.messages)
         return self
-    
+
     # TODO: write decorator to simplify the "both", "messages", "book" logic that is common to a few methods
     def add_ticker_column(self, to: Literal["both", "messages", "book"] = "messages") -> Self:
         if to in ("both", "messages"):
@@ -327,7 +323,7 @@ class Lobster:
     def __repr__(self) -> str:
         return f"Lobster data for ticker: {self.data.ticker} for date range: {self.data.date_range[0]} to {self.data.date_range[1]}."
 
-# %% ../notebooks/00_preprocessing.ipynb 21
+# %% ../notebooks/00_preprocessing.ipynb 22
 def load_lobster(**kwargs):
     """Load `Lobster` object from csv data."""
     # TODO remove this function and turn Lobster into callable class
@@ -336,7 +332,7 @@ def load_lobster(**kwargs):
 
     return lobster
 
-# %% ../notebooks/00_preprocessing.ipynb 22
+# %% ../notebooks/00_preprocessing.ipynb 23
 def load_lobsters(**kwargs):
     """Load multiple `Lobster` objects into list."""
     if not isinstance(kwargs["ticker"], list):
