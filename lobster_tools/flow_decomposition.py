@@ -390,13 +390,13 @@ def compute_ofi(
 def resample_mid(df: pd.DataFrame, resample_freq="5T"):
     return df.resample(resample_freq, label="right").last().eval("mid = bid_price_1 + (ask_price_1 - bid_price_1) / 2")["mid"]
 
-# %% ../notebooks/04_flow_decomposition.ipynb 25
+# %% ../notebooks/04_flow_decomposition.ipynb 26
 def restrict_common_index(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
     """Restrict two dataframes to their common index."""
     common_index = df1.index.intersection(df2.index)
     return df1.loc[common_index], df2.loc[common_index]
 
-# %% ../notebooks/04_flow_decomposition.ipynb 26
+# %% ../notebooks/04_flow_decomposition.ipynb 27
 def markout_returns(
     df,  # dataframe to infer times to markout from
     markouts: list[str],  # list of markouts to compute returns for
@@ -404,13 +404,13 @@ def markout_returns(
     # TODO: markouts of string literals also?
     return pd.DataFrame(index=df.index, data={f"_{markout}": df.index + pd.Timedelta(markout) for markout in markouts})
 
-# %% ../notebooks/04_flow_decomposition.ipynb 27
+# %% ../notebooks/04_flow_decomposition.ipynb 28
 def clip_for_markout(df, max_markout):
     end = max(df.index) - pd.Timedelta(max_markout)
     end = end.time()
     return clip_times(df, end=end)
 
-# %% ../notebooks/04_flow_decomposition.ipynb 28
+# %% ../notebooks/04_flow_decomposition.ipynb 29
 # TODO fix this
 # def compute_returns():
 #     index = clip_for_markout(etf_executions.resample(resample_freq, label="right").last(), max_markout=max_markout).index
