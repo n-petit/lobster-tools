@@ -21,21 +21,20 @@ CONTEXT_SETTINGS = dict(
 
 
 @click.command(context_settings=CONTEXT_SETTINGS)
-@click.option("-o", "--output-dir", required=False, help="location of output directory")
-@click.option("-t", "--ticker", required=False, help="ticker")
-@click.option("-l", "--levels", required=False, help="number of levels")
+@click.option("-t", "--ticker", default="AMZN", help="ticker")
+@click.option("-l", "--levels", default=5, help="number of levels")
 def get_sample_data(
-    ticker: Literal["AMZN", "AAPL", "GOOG", "INTC", "MSFT"] = "AMZN",
-    levels: Literal[1, 5, 10] = 5,
+    ticker: Literal["AMZN", "AAPL", "GOOG", "INTC", "MSFT"],
+    levels: Literal[1, 5, 10],
     output_dir=None,
 ):
     """Download and extract sample data from LOBSTER website."""
     SAMPLE_DATA_DATE = "2012-06-21"
     url = f"https://lobsterdata.com/info/sample/LOBSTER_SampleFile_{ticker}_{SAMPLE_DATA_DATE}_{levels}.zip"
-
-    if output_dir is None:
-        default_directory_name = "data/AMZN_2012-06-21_2-2012-06-21_5"
-        output_dir = os.path.join(os.getcwd(), default_directory_name)
+    print(f"Downloading data from {url}")
+    
+    default_directory_name = f"data/{ticker}_{SAMPLE_DATA_DATE}_{SAMPLE_DATA_DATE}_{levels}"
+    output_dir = os.path.join(os.getcwd(), default_directory_name)
 
     os.makedirs(output_dir, exist_ok=True)
 
