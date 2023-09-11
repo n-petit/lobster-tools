@@ -17,6 +17,7 @@ import requests
 CONTEXT_SETTINGS = dict(
     help_option_names=["-h", "--help"],
     token_normalize_func=lambda x: x.lower() if isinstance(x, str) else x,
+    show_default=True,
 )
 
 
