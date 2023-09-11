@@ -7,11 +7,13 @@ __all__ = ['CONTEXT_SETTINGS', 'get_sample_data']
 import io
 import os
 import zipfile
+from typing import Literal
 
 import click
 import requests
 
 # %% ../notebooks/06_data_downloading.ipynb 5
+# | code-fold: true
 CONTEXT_SETTINGS = dict(
     help_option_names=["-h", "--help"],
     token_normalize_func=lambda x: x.lower() if isinstance(x, str) else x,
@@ -19,14 +21,21 @@ CONTEXT_SETTINGS = dict(
 
 
 @click.command(context_settings=CONTEXT_SETTINGS)
-@click.option("-o", "--output_dir", required=False, help="location of output directory")
+@click.option("-o", "--output-dir", required=False, help="location of output directory")
+@click.option("-t", "--ticker", required=False, help="ticker")
+@click.option("-l", "--levels", required=False, help="number of levels")
 def get_sample_data(
-    url="https://lobsterdata.com/info/sample/LOBSTER_SampleFile_AMZN_2012-06-21_5.zip",
+    ticker: Literal["AMZN", "AAPL", "GOOG", "INTC", "MSFT"] = "AMZN",
+    levels: Literal[1, 5, 10] = 5,
     output_dir=None,
 ):
-    """Download and extract sample data from LOBSTER website for AMZN."""
+    """Download and extract sample data from LOBSTER website."""
+    SAMPLE_DATA_DATE = "2012-06-21"
+    url = f"https://lobsterdata.com/info/sample/LOBSTER_SampleFile_{ticker}_{SAMPLE_DATA_DATE}_{levels}.zip"
+
     if output_dir is None:
-        output_dir = os.path.join(os.getcwd(), "data/AMZN_2012-06-21_2-2012-06-21_5")
+        default_directory_name = "data/AMZN_2012-06-21_2-2012-06-21_5"
+        output_dir = os.path.join(os.getcwd(), default_directory_name)
 
     os.makedirs(output_dir, exist_ok=True)
 
