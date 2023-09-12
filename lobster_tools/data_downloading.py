@@ -25,8 +25,6 @@ register_configs()
 with initialize(version_base=None, config_path=None):
     cfg_omega = compose(config_name="config")
     cfg = OmegaConf.to_object(compose(config_name="config"))
-    print(cfg)
-    print(cfg.universe.equities)
 
 # %% ../notebooks/06_data_downloading.ipynb 7
 # | code-fold: true
