@@ -82,6 +82,7 @@ class Data:
 
         # ticker path
         tickers = glob.glob(f"{self.directory_path}/*")
+        # print(self.ticker)
         ticker_path = [t for t in tickers if self.ticker in t]
         if len(ticker_path) != 1:
             raise ValueError(f"Expected exactly 1 directory with name {self.ticker}")
@@ -324,7 +325,7 @@ class Lobster:
     def __repr__(self) -> str:
         return f"Lobster data for ticker: {self.data.ticker} for date range: {self.data.date_range[0]} to {self.data.date_range[1]}."
 
-# %% ../notebooks/01_preprocessing.ipynb 22
+# %% ../notebooks/01_preprocessing.ipynb 23
 def load_lobster(**kwargs):
     """Load `Lobster` object from csv data."""
     # TODO remove this function and turn Lobster into callable class
@@ -333,7 +334,7 @@ def load_lobster(**kwargs):
 
     return lobster
 
-# %% ../notebooks/01_preprocessing.ipynb 23
+# %% ../notebooks/01_preprocessing.ipynb 24
 def load_lobsters(**kwargs):
     """Load multiple `Lobster` objects into list."""
     if not isinstance(kwargs["ticker"], list):

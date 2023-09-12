@@ -7,7 +7,7 @@ __all__ = ['tolerances', 'resample_freq', 'equities', 'etfs', 'date_range', 'str
            'multi_index_to_single_index', 'groupby_index_to_series', 'compute_features', 'append_features',
            'count_non_null', 'marginalise', 'add_arb_tag', 'drop_features', 'split_isolated_non_isolated', 'ofi',
            'ofis', 'not_ofi', 'compute_ofi', 'resample_mid', 'restrict_common_index', 'markout_returns',
-           'clip_for_markout']
+           'clip_df_times', 'clip_for_markout']
 
 # %% ../notebooks/04_flow_decomposition.ipynb 4
 from functools import partial
@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 from sklearn.neighbors import KDTree
-
+import datetime
 
 # %% ../notebooks/04_flow_decomposition.ipynb 5
 tolerances = ["500us", "1ms"]
@@ -404,12 +404,6 @@ def markout_returns(
     # TODO: markouts of string literals also?
     return pd.DataFrame(index=df.index, data={f"_{markout}": df.index + pd.Timedelta(markout) for markout in markouts})
 
-# %% ../notebooks/04_flow_decomposition.ipynb 28
-def clip_for_markout(df, max_markout):
-    end = max(df.index) - pd.Timedelta(max_markout)
-    end = end.time()
-    return clip_times(df, end=end)
-
 # %% ../notebooks/04_flow_decomposition.ipynb 29
 # TODO fix this
 # def compute_returns():
@@ -432,3 +426,24 @@ def clip_for_markout(df, max_markout):
 #     return returns
 
 # returns = compute_returns()
+
+# %% ../notebooks/04_flow_decomposition.ipynb 31
+# TODO: TEMP FIX. PUSH TO PYPI AND REINSTALL
+def clip_df_times(df: pd.DataFrame, start: datetime.time | None = None, end: datetime.time | None = None) -> pd.DataFrame:
+        """Clip a dataframe or lobster object to a time range."""
+        # TODO: improve this function? with the 4 if statements lol, i guess i could clip the index twice and have two if statements
+        if start and end:
+            return df.iloc[(df.index.time >= start) & (df.index.time < end)]
+        elif start:
+            return df.iloc[df.index.time >= start]
+        elif end:
+            return df.iloc[df.index.time < end]
+        else:
+            raise ValueError("start and end cannot both be None")
+
+
+# %% ../notebooks/04_flow_decomposition.ipynb 32
+def clip_for_markout(df, max_markout):
+    end = (max(df.index) - pd.Timedelta(max_markout)).time()
+    # end = end.time()
+    return clip_df_times(df, end=end)
