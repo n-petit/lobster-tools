@@ -56,6 +56,9 @@ def add_neighbors(
     """Annotate the etf execution dataframe with the indices of the neighbouring equity executions.
     Note: Building the KDTree on the equity dataframe.
     """
+    # new addition so it's not inplace    
+    etf_executions = etf_executions.copy()
+
     etf_executions_times = get_times(etf_executions)
     equity_executions_times = get_times(equity_executions)
     equity_tree = KDTree(equity_executions_times, metric="l1")
@@ -76,6 +79,8 @@ def add_neighbors(
             _add_neighbors_col(etf_executions, tolerance)
     else:
         raise ValueError("tolerance_str must be a string or a list of strings")
+    
+    return etf_executions
 
 
 def drop_all_neighbor_cols(df: pd.DataFrame):
