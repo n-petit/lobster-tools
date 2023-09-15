@@ -22,12 +22,14 @@ import datetime
 from dataclasses import dataclass
 from functools import partial
 import json
+from typing import Literal
 import numpy as np
 from pprint import pprint
 
 # %% ../notebooks/08_etf_pipeline.ipynb 6
 # access config by normal python import
 cfg = MainConfig()
+cfg.universe.equities
 # register configs and then build object
 register_configs()
 with initialize(version_base=None, config_path=None):
