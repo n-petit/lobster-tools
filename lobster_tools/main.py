@@ -10,7 +10,11 @@ def example_main(cfg: MainConfig) -> None:
     function would be called create_arctic_db() or sth"""
     print(OmegaConf.to_yaml(cfg))
     cfg_obj = OmegaConf.to_object(cfg)
-    print(cfg_obj.universe.equities)
+    print(cfg_obj.universe_.etfs)
+    # print(cfg_obj.universe.equities)
+
+    # cfg = MainConfig()
+    # print(cfg.universe.equities)
 
 if __name__ == "__main__":
     example_main()
