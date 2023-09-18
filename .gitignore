@@ -159,5 +159,8 @@ Makefile
 # private folder
 private
 
+# outputs folder
+outputs
+
 # ignore scripts folder for now
 scripts
