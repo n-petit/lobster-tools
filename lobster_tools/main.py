@@ -9,8 +9,8 @@ def example_main(cfg: MainConfig) -> None:
     """I would have more specific name here. For example this file might be called create_arctic_dc.py and the main()
     function would be called create_arctic_db() or sth"""
     print(OmegaConf.to_yaml(cfg))
-    cfg_obj = OmegaConf.to_object(cfg)
-    print(cfg_obj.universe_.etfs)
+    # cfg_obj = OmegaConf.to_object(cfg)
+    # print(cfg_obj.universe_.etfs)
     # print(cfg_obj.universe.equities)
 
     # cfg = MainConfig()
