@@ -25,20 +25,23 @@ class ArcticDBConfig:
     columns_per_segment: int = 63
 
 
-@dataclass(frozen=True)
+# @dataclass(frozen=True)
+@dataclass
 class DataConfig:
     date_range: tuple[str, str] = MISSING
     csv_files_path: str = MISSING
 
 
-@dataclass(frozen=True)
+# @dataclass(frozen=True)
+@dataclass
 class ServerDataConfig(DataConfig):
     date_range: tuple[str, str] = ("2020-01-02", "2020-01-02")
     csv_files_path: str = "/nfs/home/nicolasp/home/data/tmp"
     zip_files_path: str = "/nfs/lobster_data/lobster_raw"
 
 
-@dataclass(frozen=True)
+# @dataclass(frozen=True)
+@dataclass
 class LocalDataConfig(DataConfig):
     date_range: tuple[str, str] = ("2019-01-02", "2019-01-02")
     csv_files_path: str = "/home/petit/Documents/data/lobster/csv"
@@ -148,8 +151,8 @@ class MainConfig:
 def register_configs() -> None:
     cs = ConfigStore.instance()
 
-    cs.store(group="defaults", name="local", node=local_defaults)
-    cs.store(group="defaults", name="server", node=server_defaults)
+    # cs.store(group="defaults", name="local", node=local_defaults)
+    # cs.store(group="defaults", name="server", node=server_defaults)
     
     cs.store(group="hyperparameters", name="simple", node=SimpleHyperparametersConfig)
     cs.store(group="hyperparameters", name="full", node=FullHyperparametersConfig)

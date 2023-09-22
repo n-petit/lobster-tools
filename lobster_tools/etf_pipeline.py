@@ -28,25 +28,34 @@ from typing import Literal
 import numpy as np
 from pprint import pprint
 
-# %% ../notebooks/08_etf_pipeline.ipynb 6
+# %% ../notebooks/08_etf_pipeline.ipynb 5
 def set_hydra_overrides(execution_environment: Literal["local", "server"]):
     match execution_environment:
         case "local":
             overrides = ["hyperparameters=simple", "universe=simple", "data_config=local"]
         case "server":
-            overrides = ["hyperparameters=full", "universe=XLE", "data_config=server"]
+            # overrides = ["hyperparameters=full", "universe=XLE", "data_config=server"]
+            overrides = ["hyperparameters=full"]
         case _:
             raise ValueError("execution_environment must be either 'local' or 'server'")
     return overrides
 
-os.environ["ETF_RUN_MODE"] = "local"
+os.environ["ETF_RUN_MODE"] = "server"
 execution_environment = os.environ.get("ETF_RUN_MODE")
 overrides = set_hydra_overrides(execution_environment)
+print(overrides)
+overrides = ["hyperparameters=simple", "universe=simple", "data_config=local"]
 
 register_configs()
 with initialize(version_base=None, config_path=None):
+    
+    # defaults = [{"hyperparameters": "simple"}, "_self_", {"override hydra/launcher": "joblib"}]
+    overrides = ["data_config.csv_files_path=baz"]
+    overrides = ["data_config=server"]
     cfg_omega = compose(config_name="config", overrides=overrides)
-    cfg: MainConfig = OmegaConf.to_object(compose(config_name="config"))
+    print(cfg_omega)
+    cfg: MainConfig = OmegaConf.to_object(compose(config_name="config", overrides=overrides))
+    print(cfg)
 
 directory_path = cfg.data_config.csv_files_path
 etfs = cfg.universe.etfs
@@ -61,3 +70,7 @@ clip_trading_hours = True
 add_ticker_column = True
 
 ticker = "AIG"
+
+
+# print(cfg.overrides)
+print(cfg.data_config.csv_files_path)
