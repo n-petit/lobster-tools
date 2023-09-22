@@ -8,6 +8,7 @@ import os
 
 import click
 from arcticdb import Arctic, LibraryOptions
+import hydra
 from hydra import initialize, initialize_config_module, initialize_config_dir, compose
 from omegaconf import OmegaConf
 from pathlib import Path
@@ -20,13 +21,25 @@ from .config import MainConfig, register_configs
 register_configs()
 with initialize(version_base=None, config_path=None):
     cfg_omega = compose(config_name="config")
-    cfg = OmegaConf.to_object(compose(config_name="config"))
+    cfg: MainConfig = OmegaConf.to_object(compose(config_name="config"))
     print(cfg)
-    # print(cfg.universe_.equities)
-    # print(cfg.hyperparameters.testa)
 
 # %% ../notebooks/07_arctic.ipynb 6
+# register_configs()
+# @hydra.main(version_base=None, config_name="config")
+# def test_arctic_db(cfg: MainConfig) -> None:
+#     """Connect to arctic db and list symbols in the `lobster` library."""
+#     # ARCTIC_DATABASE_PATH = '/nfs/home/nicolasp/home/data/arctic'
+#     conn = f'lmdb://{cfg.db.db_path}'
+#     arctic = Arctic(conn)
+#     print(arctic.list_libraries())
+
+#     library = arctic['lobster']
+#     print(library.list_symbols())
+
+# %% ../notebooks/07_arctic.ipynb 7
 # | code-fold: true
+register_configs()
 CONTEXT_SETTINGS = dict(
     help_option_names=["-h", "--help"],
     token_normalize_func=lambda x: x.lower() if isinstance(x, str) else x,
@@ -34,10 +47,15 @@ CONTEXT_SETTINGS = dict(
 )
 
 @click.command(context_settings=CONTEXT_SETTINGS)
-@click.option("-p", "--path", default=cfg.sample_data.ticker, help="database path")
-@click.option("-l", "--levels", default=cfg.sample_data.levels, help="number of levels")
-def test_arctic_db(
+@click.option("-p", "--path", default=cfg.db.db_path, help="database path")
+# @click.option("-l", "--levels", default=cfg.sample_data.levels, help="number of levels")
+def test_arctic_db(path
 ):
-    """Test connection to arctic database and list symbols."""
-    pass
+    """Connect to arctic db and list symbols in the `lobster` library."""
+    conn = f'lmdb://{path}'
+    arctic = Arctic(conn)
+    print(arctic.list_libraries())
+
+    library = arctic['lobster']
+    print(library.list_symbols())
 
