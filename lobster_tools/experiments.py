@@ -2,8 +2,8 @@
 
 # %% auto 0
 __all__ = ['directory_path', 'etfs', 'equities', 'date_range', 'markouts', 'finest_resample', 'max_markout', 'load',
-           'clip_trading_hours', 'add_ticker_column', 'CONTEXT_SETTINGS', 'example_cli', 'testa', 'print_hello',
-           'testaa', 'hydra_cli']
+           'clip_trading_hours', 'add_ticker_column', 'CONTEXT_SETTINGS', 'example_feature', 'example_cli', 'testa',
+           'print_hello', 'testaa', 'hydra_cli']
 
 # %% ../notebooks/05_experiments.ipynb 4
 import click
@@ -41,6 +41,20 @@ max_markout = cfg.hyperparameters.max_markout
 load: Literal["both", "messages", "book"] = "both"
 clip_trading_hours = True
 add_ticker_column = True
+
+# %% ../notebooks/05_experiments.ipynb 9
+CONTEXT_SETTINGS = dict(
+    help_option_names=["-h", "--help"],
+    token_normalize_func=lambda x: x.lower()
+    if isinstance(x, str)
+    else x,  # can run with --COUNT or --count, --duck or --dUcK etc..
+)
+
+@click.command(context_settings=CONTEXT_SETTINGS)
+@click.option("-c", "--count", required=True, help="example arg.")
+def example_feature(count):
+    "nbdev cli test"
+    print(f"{count} example feature")
 
 # %% ../notebooks/05_experiments.ipynb 10
 def example_cli():
