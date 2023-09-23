@@ -9,7 +9,7 @@ __all__ = ['execution_environment', 'overrides', 'directory_path', 'etfs', 'equi
 import os
 
 import click
-from arcticdb import Arctic, LibraryOptions
+from arcticdb import Arctic, QueryBuilder
 from hydra import initialize, initialize_config_module, initialize_config_dir, compose
 from omegaconf import OmegaConf
 from pathlib import Path
@@ -60,7 +60,8 @@ with initialize(version_base=None, config_path=None):
 directory_path = cfg.data_config.csv_files_path
 etfs = cfg.universe.etfs
 equities = cfg.universe.equities
-date_range = cfg.data_config.date_range
+# fix this
+date_range = tuple(cfg.data_config.date_range)
 markouts = cfg.hyperparameters.markouts
 finest_resample = cfg.hyperparameters.finest_resample
 max_markout = cfg.hyperparameters.max_markout
@@ -69,8 +70,6 @@ load: Literal["both", "messages", "book"] = "both"
 clip_trading_hours = True
 add_ticker_column = True
 
-ticker = "AIG"
-
-
-# print(cfg.overrides)
-print(cfg.data_config.csv_files_path)
+ticker = "APA"
+date_range = ("2020-01-02", "2020-01-04")
+date_range = "2020-01-02"

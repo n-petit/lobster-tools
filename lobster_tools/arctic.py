@@ -75,6 +75,7 @@ def test_arctic_db(path
 def test_arctic_read_symbol(db_path, ticker, start_date, end_date,
 ):
     """Connect to arctic db and list symbols in the `lobster` library."""
+    # date range unused as of now, pass in a query builder object
     date_range = (start_date, end_date)
     conn = f'lmdb://{db_path}'
     arctic = Arctic(conn)
