@@ -82,7 +82,7 @@ def arctic_write_symbol(
 
     if ticker in arctic_library.list_symbols():
         print("warning - there is already data for ths ticker")
-        user_input = input("Proceed by adding data to this symbol? (y/n):")
+        user_input = input("Proceed by adding data to this symbol? (y/n): ")
         user_input = user_input.lower()
         match user_input:
             case "y":
