@@ -20,7 +20,7 @@ from omegaconf import OmegaConf, MISSING
 @dataclass(frozen=True)
 class NASDAQExchange:
     exchange_open: str = "9:30"
-    exchange_close: str = "4:30"
+    exchange_close: str = "4:00"
 
 # %% ../notebooks/00_config.ipynb 8
 # | code-fold: true
