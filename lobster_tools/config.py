@@ -107,7 +107,7 @@ class SimpleServerUniverseConfig:
 
 defaults_simple_local = [
     {"hyperparameters": "simple"},
-    {"universe": "simple"},
+    {"universe": "simple_local"},
     {"data_config": "local"},
     "_self_",
 ]
@@ -152,11 +152,11 @@ def get_config(overrides: list[str] | None = None) -> MainConfig:
 @dataclass
 class Overrides:
     simple_local = None
-    simple_local = [
-        "data_config=local",
-        "hyperparameters=simple",
-        "universe=simple_local",
-    ]
+    # simple_local = [
+    #     "data_config=local",
+    #     "hyperparameters=simple",
+    #     "universe=simple_local",
+    # ]
     simple_server = [
         "data_config=server",
         "hyperparameters=simple",
