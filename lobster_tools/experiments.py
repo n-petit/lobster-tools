@@ -14,10 +14,10 @@ import hydra
 from hydra import initialize, compose
 from omegaconf import OmegaConf
 
-# %% ../notebooks/05_experiments.ipynb 7
+# %% ../notebooks/05_experiments.ipynb 5
 os.environ["ETF_PIPELINE"] = "local"
 
-# %% ../notebooks/05_experiments.ipynb 9
+# %% ../notebooks/05_experiments.ipynb 7
 register_configs()
 cfg = get_config()
 
@@ -33,7 +33,7 @@ load: Literal["both", "messages", "book"] = "both"
 clip_trading_hours = True
 add_ticker_column = True
 
-# %% ../notebooks/05_experiments.ipynb 10
+# %% ../notebooks/05_experiments.ipynb 8
 CONTEXT_SETTINGS = dict(
     help_option_names=["-h", "--help"],
     token_normalize_func=lambda x: x.lower()
@@ -47,7 +47,7 @@ def example_feature(count):
     "nbdev cli test"
     print(f"{count} example feature")
 
-# %% ../notebooks/05_experiments.ipynb 11
+# %% ../notebooks/05_experiments.ipynb 9
 def example_cli():
     register_configs()
     with initialize(version_base=None, config_path=None):
@@ -55,7 +55,7 @@ def example_cli():
         cfg: MainConfig = OmegaConf.to_object(compose(config_name="config"))
     print(cfg)
 
-# %% ../notebooks/05_experiments.ipynb 12
+# %% ../notebooks/05_experiments.ipynb 10
 # simple test of click and setuptools console_scripts entry points.. works nicely for simple CLIs
 CONTEXT_SETTINGS = dict(
     help_option_names=["-h", "--help"],
@@ -78,12 +78,12 @@ def testa(count, duck, elephant, int_):
         f"printing the arg count: {count}. duck: {duck}. elephant: {elephant}. reserved keyword int: {int_}"
     )
 
-# %% ../notebooks/05_experiments.ipynb 13
+# %% ../notebooks/05_experiments.ipynb 11
 def print_hello():
     "nbdev cli test"
     print("hello")
 
-# %% ../notebooks/05_experiments.ipynb 14
+# %% ../notebooks/05_experiments.ipynb 12
 CONTEXT_SETTINGS = dict(
     help_option_names=["-h", "--help"],
     token_normalize_func=lambda x: x.lower()
@@ -98,7 +98,7 @@ def testaa(count):
     "nbdev cli test"
     print(f"{count} testaa")
 
-# %% ../notebooks/05_experiments.ipynb 15
+# %% ../notebooks/05_experiments.ipynb 13
 # register_configs()
 @hydra.main(version_base=None, config_name="config")
 def hydra_cli(cfg: MainConfig) -> None:
@@ -106,7 +106,7 @@ def hydra_cli(cfg: MainConfig) -> None:
     function would be called create_arctic_db() or sth"""
     print(OmegaConf.to_yaml(cfg))
 
-# %% ../notebooks/05_experiments.ipynb 16
+# %% ../notebooks/05_experiments.ipynb 14
 # register_configs()
 # @hydra.main(version_base=None, config_name="config")
 # def example_main(cfg: MainConfig) -> None:
