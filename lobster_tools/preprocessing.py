@@ -27,8 +27,9 @@ class Event(enum.Enum):
     EXECUTION = 4
     HIDDEN_EXECUTION = 5
     CROSS_TRADE = 6
+    ORIGINAL_TRADING_HALT = 7
     OTHER = 8
-    TRADING_HALT = 7
+    TRADING_HALT = 9
     RESUME_QUOTE = 10
     TRADING_RESUME = 11
 
@@ -179,23 +180,7 @@ def clip_df_times(df: pd.DataFrame, start: datetime.time | None = None, end: dat
 
 _clip_df_trading_hours = partial(clip_df_times, start=datetime.time(9, 30), end=datetime.time(16, 0))
 
-# %% ../notebooks/01_preprocessing.ipynb 21
-def clip_df_times(df: pd.DataFrame, start: datetime.time | None = None, end: datetime.time | None = None) -> pd.DataFrame:
-    """Clip a dataframe or lobster object to a time range."""
-    # TODO: improve this function? with the 4 if statements lol, i guess i could clip the index twice and have two if statements
-    if start and end:
-        return df.iloc[(df.index.time >= start) & (df.index.time < end)]
-    elif start:
-        return df.iloc[df.index.time >= start]
-    elif end:
-        return df.iloc[df.index.time < end]
-    else:
-        raise ValueError("start and end cannot both be None")
-
-
-_clip_df_trading_hours = partial(clip_df_times, start=datetime.time(9, 30), end=datetime.time(16, 0))
-
-# %% ../notebooks/01_preprocessing.ipynb 22
+# %% ../notebooks/01_preprocessing.ipynb 20
 # | code-fold: true
 @dataclass
 class Lobster:
@@ -222,7 +207,7 @@ class Lobster:
                         "event": "uint8",
                         "price": "int64",
                         "direction": "int8",
-                        "order_id": "uint32",
+                        "order_id": "int32",
                         "size": "uint64",
                     },
                 )
@@ -230,16 +215,27 @@ class Lobster:
                 # set index as datetime
                 df["datetime"] = pd.to_datetime(date, format="%Y-%m-%d") + df.time.apply(lambda x: pd.to_timedelta(x, unit="s"))
                 df.set_index("datetime", drop=True, inplace=True)
-                df.drop(columns="time", inplace=True)
+                df.rename(columns={'time':'seconds_since_midnight'})
+                # df.drop(columns="time", inplace=True)
                 dfs.append(df)
             df = pd.concat(dfs)
 
-            if not df.loc[df.event.eq(Event.TRADING_HALT.value), "direction"].eq(-1).all():
+            # direction for cross trades is set to zero, and order_id is left unchanged
+            if not df.loc[df.event.eq(Event.CROSS_TRADE.value), "direction"].eq(-1).all():
+                raise ValueError("All cross trades must have direction -1")
+            df.loc[df.event.eq(Event.CROSS_TRADE.value), "direction"] = 0
+
+            if not df.loc[df.event.eq(Event.CROSS_TRADE.value), "order_id"].eq(-1).all():
+                raise ValueError("All cross trades must have order_id -1")
+
+            # assert df.loc[df.event.eq(Event.TRADING_HALT.value), "direction"].eq(-1).all()
+            df.loc[df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "direction"] = 0
+            if not df.loc[df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "direction"].eq(-1).all():
                 raise ValueError("All trading halts must have direction -1")
             # assert df.loc[df.event.eq(Event.TRADING_HALT.value), "direction"].eq(-1).all()
-            df.loc[df.event.eq(Event.TRADING_HALT.value), "direction"] = 0
+            df.loc[df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "direction"] = 0
 
-            # process trading halts
+            # # process trading halts and map to new trading halts
             def _trading_halt_type(price):
                 return {
                     -1: Event.TRADING_HALT.value,
@@ -247,8 +243,17 @@ class Lobster:
                     1: Event.TRADING_RESUME.value,
                 }[price]
 
-            # TODO: change from apply?
+            # doesn't make much difference
             df.loc[df.event.eq(Event.TRADING_HALT.value), "event"] = df.loc[df.event.eq(Event.TRADING_HALT.value), "price"].apply(_trading_halt_type)
+
+            # implentation of above without apply
+            # trading_halt_mask = (df.event == Event.TRADING_HALT.value)
+            # halt_type_mapping = {
+            #     -1: Event.TRADING_HALT.value,
+            #     0: Event.RESUME_QUOTE.value,
+            #     1: Event.TRADING_RESUME.value,
+            # }
+            # df.loc[trading_halt_mask, "event"] = df.loc[trading_halt_mask, "price"].map(halt_type_mapping)
 
             # use 0 as NaN for size and direction
             df.loc[
@@ -343,7 +348,7 @@ class Lobster:
     def __repr__(self) -> str:
         return f"Lobster data for ticker: {self.data.ticker} for date range: {self.data.date_range[0]} to {self.data.date_range[1]}."
 
-# %% ../notebooks/01_preprocessing.ipynb 28
+# %% ../notebooks/01_preprocessing.ipynb 26
 def load_lobster(**kwargs):
     """Load `Lobster` object from csv data."""
     # TODO remove this function and turn Lobster into callable class
@@ -352,7 +357,7 @@ def load_lobster(**kwargs):
 
     return lobster
 
-# %% ../notebooks/01_preprocessing.ipynb 29
+# %% ../notebooks/01_preprocessing.ipynb 27
 def load_lobsters(**kwargs):
     """Load multiple `Lobster` objects into list."""
     if not isinstance(kwargs["ticker"], list):
