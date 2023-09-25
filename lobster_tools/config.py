@@ -122,7 +122,8 @@ class MainConfig:
     db: ArcticDBConfig = field(default_factory=ArcticDBConfig)
     sample_data: SampleDataConfig = field(default_factory=SampleDataConfig)
 
-
+# %% ../notebooks/00_config.ipynb 9
+# | code-fold: true
 def register_configs() -> None:
     """Register `MainConfig` class instance into `config` name so that hydra is able to access it."""
     cs = ConfigStore.instance()
@@ -148,15 +149,13 @@ def get_config(overrides: list[str] | None = None) -> MainConfig:
         cfg = OmegaConf.to_object(compose(config_name="config", overrides=overrides))
     return cfg
 
-
+# %% ../notebooks/00_config.ipynb 11
+# | code-fold: true
 @dataclass
 class Overrides:
-    simple_local = None
-    # simple_local = [
-    #     "data_config=local",
-    #     "hyperparameters=simple",
-    #     "universe=simple_local",
-    # ]
+    """Common overrides for running scripts or notebooks on the server or locally."""
+
+    simple_local = None  # simple_local is the default
     simple_server = [
         "data_config=server",
         "hyperparameters=simple",

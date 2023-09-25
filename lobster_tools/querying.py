@@ -12,7 +12,6 @@ import pandas as pd
 
 from .preprocessing import Direction, Event, EventGroup, load_lobster
 
-
 # %% ../notebooks/02_querying.ipynb 5
 def query_by_direction(
     df: pd.DataFrame,  # messages dataframe
@@ -38,7 +37,6 @@ get_sell = partial(query_by_direction, direction="sell")
 def split_by_direction(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     "Returns a tuple of (buy, sell) DataFrames"
     return get_buy(df), get_sell(df)
-
 
 # %% ../notebooks/02_querying.ipynb 6
 def query_by_event(
@@ -85,7 +83,9 @@ get_halts = partial(query_by_event, event="halts")
 get_cancellations = partial(query_by_event, event="cancellations")
 
 
-def load_executions(date_range: str, tickers: list[str], ticker_type: str) -> pd.DataFrame:
+def load_executions(
+    date_range: str, tickers: list[str], ticker_type: str
+) -> pd.DataFrame:
     ticker_execution_dfs = []
     for ticker in tickers:
         ticker_execution_dfs.append(
@@ -98,7 +98,9 @@ def load_executions(date_range: str, tickers: list[str], ticker_type: str) -> pd
             ).messages.pipe(get_executions)
         )
 
-    tickers_execution = pd.concat(ticker_execution_dfs).astype(dtype={"ticker": "category"})
+    tickers_execution = pd.concat(ticker_execution_dfs).astype(
+        dtype={"ticker": "category"}
+    )
     return tickers_execution
 
 
