@@ -12,33 +12,38 @@ import hydra
 from hydra import initialize, initialize_config_module, initialize_config_dir, compose
 from omegaconf import OmegaConf
 from pathlib import Path
-from .config import MainConfig, Overrides, NASDAQExchange, register_configs, get_config
+from lobster_tools.config import (
+    MainConfig,
+    Overrides,
+    NASDAQExchange,
+    register_configs,
+    get_config,
+)
 from .preprocessing import Data, Lobster
 import sys
 import pandas as pd
 from logging import Logger
 from datetime import date
 
-# %% ../notebooks/07_arctic.ipynb 8
-# register_configs()
+# %% ../notebooks/07_arctic.ipynb 6
+register_configs()
 cfg = get_config(overrides=Overrides.full_server)
-cfg = get_config(overrides=['data_config=server', 'hyperparameters=full', 'universe=SPY'])
 
-# %% ../notebooks/07_arctic.ipynb 9
+# %% ../notebooks/07_arctic.ipynb 7
 CONTEXT_SETTINGS = dict(
     help_option_names=["-h", "--help"],
     token_normalize_func=lambda x: x.lower() if isinstance(x, str) else x,
     show_default=True,
 )
 
-# %% ../notebooks/07_arctic.ipynb 10
+# %% ../notebooks/07_arctic.ipynb 8
 def get_arctic_library(db_path, library):
     conn = f"lmdb://{db_path}"
     arctic = Arctic(conn)
     arctic_library = arctic[library]
     return arctic_library
 
-# %% ../notebooks/07_arctic.ipynb 12
+# %% ../notebooks/07_arctic.ipynb 10
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("-d", "--db_path", default=cfg.db.db_path, help="database path")
@@ -59,7 +64,7 @@ def arctic_read_symbol(db_path, library, ticker, start_date, end_date,
     print(f"Printing df.head() for ticker {ticker}")
     print(df.tail())
 
-# %% ../notebooks/07_arctic.ipynb 14
+# %% ../notebooks/07_arctic.ipynb 12
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option(

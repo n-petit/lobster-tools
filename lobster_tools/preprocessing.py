@@ -36,7 +36,11 @@ class Event(enum.Enum):
 
 @enum.unique
 class EventGroup(enum.Enum):
-    EXECUTIONS = [Event.EXECUTION.value, Event.HIDDEN_EXECUTION.value, Event.CROSS_TRADE.value]
+    EXECUTIONS = [
+        Event.EXECUTION.value,
+        Event.HIDDEN_EXECUTION.value,
+        Event.CROSS_TRADE.value,
+    ]
     HALTS = [
         Event.TRADING_HALT.value,
         Event.RESUME_QUOTE.value,
