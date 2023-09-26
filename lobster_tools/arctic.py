@@ -3,7 +3,7 @@
 # %% auto 0
 __all__ = ['cfg', 'CONTEXT_SETTINGS', 'get_arctic_library', 'arctic_list_symbols', 'arctic_create_new_library',
            'arctic_list_libraries', 'arctic_delete_library', 'arctic_read_symbol', 'arctic_write_symbol',
-           'arctic_generate_jobs', 'arctic_dump_all']
+           'arctic_generate_jobs', 'zip_generate_jobs', 'arctic_dump_all']
 
 # %% ../notebooks/07_arctic.ipynb 4
 import os
@@ -18,10 +18,11 @@ from lobster_tools.config import (
     MainConfig,
     Overrides,
     NASDAQExchange,
+    ETFMembers,
     register_configs,
     get_config,
 )
-from .preprocessing import Data, Lobster, infer_ticker_to_date_range
+from .preprocessing import Data, Lobster, infer_ticker_to_date_range, infer_ticker_to_ticker_path, infer_ticker_dict
 import sys
 import pandas as pd
 from logging import Logger
@@ -107,17 +108,20 @@ def arctic_delete_library(db_path, library) -> None:
 @click.option("-d", "--db_path", default=cfg.db.db_path, help="database path")
 @click.option("-l", "--library", default=cfg.db.library, help="library name")
 @click.option("-t", "--ticker", required=True, help="ticker to print")
-@click.option("-s", "--start_date", default="2020-01-02", help="start date")
-@click.option("-e", "--end_date", default="2020-01-07", help="end date")
+@click.option("-s", "--start_date", default=None, help="start date")
+@click.option("-e", "--end_date", default=None, help="end date")
 def arctic_read_symbol(db_path, library, ticker, start_date, end_date,
 ):
     """Print df.head() and available columns for ticker in arcticdb library."""
     arctic_library = get_arctic_library(db_path=db_path, library=library)
 
-    start_datetime = pd.Timestamp(f"{start_date}T{NASDAQExchange.exchange_open}")
-    end_datetime = pd.Timestamp(f"{end_date}T{NASDAQExchange.exchange_close}")
-    date_range = (start_datetime, end_datetime)
-    df = arctic_library.read(ticker, date_range=date_range).data
+    if start_date and end_date:
+        start_datetime = pd.Timestamp(f"{start_date}T{NASDAQExchange.exchange_open}")
+        end_datetime = pd.Timestamp(f"{end_date}T{NASDAQExchange.exchange_close}")
+        date_range = (start_datetime, end_datetime)
+        df = arctic_library.read(ticker, date_range=date_range).data
+    else:
+        df = arctic_library.read(ticker).data
     
     print(f"Printing df.head() and df.tail() for ticker {ticker}")
     print(df.head())
@@ -179,7 +183,7 @@ def arctic_write_symbol(
 @click.option("-s", "--start_date", default=None, help="start date")
 @click.option("-e", "--end_date", default=None, help="end date")
 def arctic_generate_jobs(csv_path, db_path, library, start_date, end_date):
-    ticker_date_dict = infer_ticker_to_date_range(csv_files_path=csv_path)
+    ticker_date_dict = infer_ticker_to_date_range(csv_path)
     with open('arctic_commands.txt', 'w') as f:
         for ticker, (inferred_start_date, inferred_end_date) in ticker_date_dict.items():
             # if date is None use the inferred date, otherwise use the CLI argument
@@ -188,6 +192,40 @@ def arctic_generate_jobs(csv_path, db_path, library, start_date, end_date):
             f.write(f"arctic_write_symbol --csv_path={csv_path} --db_path={db_path} --library={library} --ticker={ticker} --start_date={start_date} --end_date={end_date} \n")
 
 # %% ../notebooks/07_arctic.ipynb 17
+# | code-fold: true
+@click.command(context_settings=CONTEXT_SETTINGS)
+@click.option(
+    "-z",
+    "--zip_path",
+    default="/nfs/lobster_data/lobster_raw/2016",
+    help="zip files path",
+)
+@click.option(
+    "-c", "--csv_path", default=cfg.data_config.csv_files_path, help="csv files path"
+)
+@click.option(
+    "-e", "--etf", default=None, help="restrict to subset specified by ETF members"
+)
+def zip_generate_jobs(zip_path, csv_path, etf):
+    # ticker_date_dict = infer_ticker_to_ticker_path(zip_path)
+    # print(ticker_date_dict)
+    # if etf:
+    #     print(ETFMembers().mapping[etf])
+    #     ticker_date_dict = {
+    #         ticker: ticker_path
+    #         for ticker, ticker_path in ticker_date_dict.items()
+    #         if ticker in ETFMembers().mapping[etf] + [etf]
+    #     }
+    # print(ticker_date_dict)
+    ticker_dict = infer_ticker_dict(zip_path)
+    with open("zip_commands.txt", "w") as f:
+        for ticker, dict_ in ticker_dict.items():
+            full = dict_["full"]
+            ticker_till_end = dict_["ticker_till_end"]
+            f.write(f"mkdir {csv_path}/{ticker_till_end}\n")
+            f.write(f"/nfs/home/nicolasp/usr/bin/7z x {full} -o{ticker_till_end}\n")
+
+# %% ../notebooks/07_arctic.ipynb 18
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option(
