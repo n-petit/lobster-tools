@@ -161,3 +161,6 @@ outputs
 
 # ignore scripts folder for now
 scripts
+
+# ignore GNU parallel arctic setups
+arctic_*.txt
