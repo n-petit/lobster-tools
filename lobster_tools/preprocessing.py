@@ -2,7 +2,7 @@
 
 # %% auto 0
 __all__ = ['Event', 'EventGroup', 'Direction', 'Data', 'clip_df_times', 'Lobster', 'load_lobster', 'load_lobsters',
-           'infer_ticker_to_date_range', 'infer_ticker_dict', 'infer_ticker_to_ticker_path']
+           'infer_ticker_to_date_range', 'FolderInfo', 'infer_ticker_dict', 'infer_ticker_to_ticker_path']
 
 # %% ../notebooks/01_preprocessing.ipynb 5
 import datetime
@@ -400,27 +400,50 @@ def infer_ticker_to_date_range(
 infer_ticker_to_date_range()
 
 # %% ../notebooks/01_preprocessing.ipynb 33
-def infer_ticker_dict(files_path: str = "/nfs/home/nicolasp/home/data/tmp", /) -> dict:
+@dataclass
+class FolderInfo:
+    full: str
+    ticker: str
+    ticker_till_end: str
+    start_date: str
+    end_date: str
+
+
+def infer_ticker_dict(
+    files_path: str = "/nfs/home/nicolasp/home/data/tmp", /
+) -> list[FolderInfo]:
     """Infer from folder structure the ticker to date_range mapping."""
     files_path_ = Path(files_path)
     all_folders = [str(path) for path in files_path_.glob("*")]
 
     ticker_pattern = re.compile(
-        r"(.*_)(([A-Z.]{2,6})_(\d{4}-\d{2}-\d{2})_(\d{4}-\d{2}-\d{2})(.*))"
+        r"(.*?)(([A-Z.]{1,7})_(\d{4}-\d{2}-\d{2})_(\d{4}-\d{2}-\d{2})(.*))"
     )
 
-    ticker_date_dict = {
-        match.group(3): {
-            "full": match.group(0),
-            "ticker_till_end": match.group(2),
-            "start_date": match.group(4),
-            "end_date": match.group(5),
-        }
+    folder_info = [
+        FolderInfo(
+            full=match.group(0),
+            ticker=match.group(3),
+            ticker_till_end=match.group(2).rstrip('.7z'),
+            start_date=match.group(4),
+            end_date=match.group(5),
+        )
         for folder in all_folders
         if (match := ticker_pattern.search(folder))
-    }
-    return ticker_date_dict
+    ]
+    return folder_info
 
+    # ticker_date_dict = {
+    #     match.group(3): {
+    #         "full": match.group(0),
+    #         "ticker_till_end": match.group(2),
+    #         "start_date": match.group(4),
+    #         "end_date": match.group(5),
+    #     }
+    #     for folder in all_folders
+    #     if (match := ticker_pattern.search(folder))
+    # }
+    # return ticker_date_dict
 
 # %% ../notebooks/01_preprocessing.ipynb 35
 def infer_ticker_to_ticker_path(
