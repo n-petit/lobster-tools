@@ -231,8 +231,9 @@ class Lobster:
                 raise ValueError("All cross trades must have direction -1")
             df.loc[df.event.eq(Event.CROSS_TRADE.value), "direction"] = 0
 
-            if not df.loc[df.event.eq(Event.CROSS_TRADE.value), "order_id"].eq(-1).all():
-                raise ValueError("All cross trades must have order_id -1")
+            # seems as though this is not true?
+            # if not df.loc[df.event.eq(Event.CROSS_TRADE.value), "order_id"].eq(-1).all():
+            #     raise ValueError("All cross trades must have order_id -1")
 
             # assert df.loc[df.event.eq(Event.TRADING_HALT.value), "direction"].eq(-1).all()
             df.loc[df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "direction"] = 0

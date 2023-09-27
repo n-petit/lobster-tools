@@ -339,11 +339,13 @@ def dump(
 
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         futures = [
-            executor.submit(write_, csv_path=csv_path, db_path=db_path, library=library, ticker=folder_info.ticker, start_date=folder_info.start_date, end_date=folder_info.end_date)
+            executor.submit(write_, csv_path=csv_path, db_path=db_path, library=library, ticker=folder_info.ticker, start_date="2016-01-01", end_date="2016-01-04")
             for folder_info in folder_infos
         ]
-        for future in futures:
-            print(future.result())
+        # futures = [
+        #     executor.submit(write_, csv_path=csv_path, db_path=db_path, library=library, ticker=folder_info.ticker, start_date=folder_info.start_date, end_date=folder_info.end_date)
+        #     for folder_info in folder_infos
+        # ]
     print('done')
 
 
