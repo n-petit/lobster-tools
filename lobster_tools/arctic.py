@@ -338,16 +338,17 @@ def dump(
     print(folder_infos)
 
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
-        futures = [
-            executor.submit(write_, csv_path=csv_path, db_path=db_path, library=library, ticker=folder_info.ticker, start_date="2016-01-01", end_date="2016-01-04")
-            for folder_info in folder_infos
-        ]
+        # small job with only a few dates
         # futures = [
-        #     executor.submit(write_, csv_path=csv_path, db_path=db_path, library=library, ticker=folder_info.ticker, start_date=folder_info.start_date, end_date=folder_info.end_date)
+        #     executor.submit(write_, csv_path=csv_path, db_path=db_path, library=library, ticker=folder_info.ticker, start_date="2016-01-01", end_date="2016-01-04")
         #     for folder_info in folder_infos
         # ]
+        # full job with whole year
+        futures = [
+            executor.submit(write_, csv_path=csv_path, db_path=db_path, library=library, ticker=folder_info.ticker, start_date=folder_info.start_date, end_date=folder_info.end_date)
+            for folder_info in folder_infos
+        ]
     print('done')
-
 
 # %% ../notebooks/07_arctic.ipynb 17
 # | code-fold: true
