@@ -6,17 +6,19 @@ __all__ = ['cfg', 'CONTEXT_SETTINGS', 'O', 'click_db_path', 'click_library', 'fo
            'inherit_docstring_from', 'infer_options', 'inherits_from', 'list_libraries', 'list_symbols',
            'create_library', 'delete_library', 'write', 'say', 'generate_jobs', 'sleepy', 'extract_7z', 'zip', 'dump',
            'ArcticLibraryInfo', 'info', 'tickers', 'versions', 'dates', 'get_library_info', 'ClickCtxObj', 'ClickCtx',
-           'create', 'ls', 'libraries', 'symbols', 'arctic_list_symbols', 'arctic_create_new_library',
-           'arctic_list_libraries', 'arctic_delete_library', 'arctic_read_symbol', 'arctic_write_symbol',
-           'arctic_generate_jobs', 'zip_generate_jobs', 'arctic_dump_all']
+           'create', 'ls', 'libraries', 'symbols', 'parse_comma_separated', 'rm', 'library', 'arctic_list_symbols',
+           'arctic_create_new_library', 'arctic_list_libraries', 'arctic_delete_library', 'arctic_read_symbol',
+           'arctic_write_symbol', 'arctic_generate_jobs', 'zip_generate_jobs', 'arctic_dump_all']
 
 # %% ../notebooks/07_arctic.ipynb 4
 import os
 
+import re
 import click
 from click.testing import CliRunner
 from arcticdb import Arctic, QueryBuilder
 from arcticdb.version_store.library import Library
+from arcticdb.exceptions import LibraryNotFound
 import hydra
 from hydra import initialize, initialize_config_module, initialize_config_dir, compose
 from omegaconf import OmegaConf
@@ -579,8 +581,11 @@ def apply_options(options: list):
 
 
 class ClickCtxObj(TypedDict):
-    arctic: Arctic
+    """Purely for type hinting. for instance `arctic_library` not always there."""
+
     library: str
+    arctic: Arctic
+    arctic_library: Library
 
 
 class ClickCtx(Protocol):
@@ -594,12 +599,18 @@ class ClickCtx(Protocol):
 @click.pass_context
 def arctic(ctx, db_path, library, debug):
     ctx.ensure_object(dict)
+    arctic = Arctic(f"lmdb://{db_path}")
     ctx.obj.update(
         {
-            "arctic": Arctic(f"lmdb://{db_path}"),
+            "arctic": arctic,
             "library": library,
         }
     )
+    try:
+        ctx.obj["arctic_library"] = arctic[library]
+    except LibraryNotFound:
+        pass
+
     if debug:
         global handler
         handler.setFormatter(formatter_full)
@@ -618,9 +629,8 @@ def create(ctx: ClickCtx) -> None:
 @arctic.group()
 @click.pass_context
 def ls(ctx: ClickCtx):
-    """List information about database.
-
-    Using word list clashed with python type hints!"""
+    """List information about database."""
+    # NOTE: Using word list clashed with python type hints!"""
     pass
 
 
@@ -634,20 +644,18 @@ def libraries(ctx: ClickCtx):
 @ls.command()
 @click.pass_context
 def symbols(ctx: ClickCtx):
-    arctic = ctx.obj["arctic"]
-    library = ctx.obj["library"]
-    logger.info(arctic[library].list_symbols())
+    arctic_library = ctx.obj["arctic_library"]
+    logger.info(arctic_library.list_symbols())
 
 
 @ls.command()
 @click.pass_context
 def versions(ctx: ClickCtx):
-    arctic = ctx.obj["arctic"]
-    library = ctx.obj["library"]
+    arctic_library = ctx.obj["arctic_library"]
 
     logger.info(
         (
-            pd.DataFrame(arctic[library].list_versions())
+            pd.DataFrame(arctic_library.list_versions())
             .transpose()
             .drop(columns=[1, 2])
             .rename(columns={0: "created_on"})
@@ -660,19 +668,32 @@ def versions(ctx: ClickCtx):
     )
 
 
+def parse_comma_separated(ctx, param, value: str):
+    """Convert a comma (or space) separated option to a list of options"""
+    if value is not None:
+        delimiters = r"[ ,]"
+        option_list = re.split(delimiters, value)
+        option_list = list(filter(None, option_list))
+        return option_list
+
+
 @ls.command()
-@click.option("-t", "--ticker", default=None, help="Filter on single ticker")
-@click.option("--tickers", default=None, help="Comma-separated tickers")
+# @click.option("-t", "--tickers", callback=parse_comma_separated , help="Comma or space separated tickers")
 @click.option(
-    "--all", is_flag=True, default=False, help="print all dates not just start and end"
+    "-t", "--tickers", multiple=True, type=str, help="Provide ticker(s) to filter on"
+)
+@click.option(
+    "-a",
+    "--all",
+    is_flag=True,
+    default=False,
+    help="print all dates not just start and end",
 )
 @click.pass_context
-def dates(ctx: ClickCtx, ticker, tickers, all):
-    arctic = ctx.obj["arctic"]
-    library = ctx.obj["library"]
-    if tickers:
-        tickers = tickers.split(",")
-    arctic_library_infos = get_library_info(arctic[library], tickers=tickers)
+def dates(ctx: ClickCtx, tickers, all):
+    arctic_library = ctx.obj["arctic_library"]
+
+    arctic_library_infos = get_library_info(arctic_library, tickers=tickers)
 
     if all:
         logger.info(pformat({x.ticker: x.dates_list for x in arctic_library_infos}))
@@ -683,11 +704,37 @@ def dates(ctx: ClickCtx, ticker, tickers, all):
             )
         )
 
-# %% ../notebooks/07_arctic.ipynb 21
-# | export
+
+@arctic.group()
+@click.pass_context
+def rm(ctx: ClickCtx):
+    """List information about database."""
+    # NOTE: Using word del clashed with python!
+    pass
 
 
-# %% ../notebooks/07_arctic.ipynb 27
+@rm.command()
+@click.pass_context
+@click.option(
+    "-l", "--library", required=True, type=str, help="Library to permanently delete"
+)
+# @click.confirmation_option(prompt=f'Do you want to permanently delete the entire library?')
+def library(ctx: ClickCtx, library):
+    arctic = ctx.obj["arctic"]
+    try:
+        arctic_library = arctic[library]
+        if click.confirm(
+            "Library information:\n"
+            f"{arctic_library}\n\n"
+            "Tickers in this library:\n"
+            f"{arctic_library.list_symbols()}\n"
+            "Are you sure you want to permanently delete the library?"
+        ):
+            arctic.delete_library(library)
+    except LibraryNotFound:
+        logger.info("No library found to delete.")
+
+# %% ../notebooks/07_arctic.ipynb 29
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("-d", "--db_path", default=cfg.db.db_path, help="database path")
@@ -698,7 +745,7 @@ def arctic_list_symbols(db_path, library) -> None:
     print(f"Symbols in library {library}")
     print(arctic_library.list_symbols())
 
-# %% ../notebooks/07_arctic.ipynb 28
+# %% ../notebooks/07_arctic.ipynb 30
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("-d", "--db_path", default=cfg.db.db_path, help="database path")
@@ -710,7 +757,7 @@ def arctic_create_new_library(db_path, library) -> None:
     arctic.create_library(library) 
     print(arctic[library])
 
-# %% ../notebooks/07_arctic.ipynb 29
+# %% ../notebooks/07_arctic.ipynb 31
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("-d", "--db_path", default=cfg.db.db_path, help="database path")
@@ -721,7 +768,7 @@ def arctic_list_libraries(db_path) -> None:
     arctic = Arctic(conn)
     print(arctic.list_libraries())
 
-# %% ../notebooks/07_arctic.ipynb 30
+# %% ../notebooks/07_arctic.ipynb 32
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("-d", "--db_path", default=cfg.db.db_path, help="database path")
@@ -743,7 +790,7 @@ def arctic_delete_library(db_path, library) -> None:
     arctic = Arctic(conn)
     arctic.delete_library(library) 
 
-# %% ../notebooks/07_arctic.ipynb 31
+# %% ../notebooks/07_arctic.ipynb 33
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("-d", "--db_path", default=cfg.db.db_path, help="database path")
@@ -768,7 +815,7 @@ def arctic_read_symbol(db_path, library, ticker, start_date, end_date,
     print(df.head())
     print(df.tail())
 
-# %% ../notebooks/07_arctic.ipynb 33
+# %% ../notebooks/07_arctic.ipynb 35
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option(
@@ -813,7 +860,7 @@ def arctic_write_symbol(
 
     arctic_library.write(symbol=ticker, data=df)
 
-# %% ../notebooks/07_arctic.ipynb 34
+# %% ../notebooks/07_arctic.ipynb 36
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option(
@@ -832,7 +879,7 @@ def arctic_generate_jobs(csv_path, db_path, library, start_date, end_date):
             end_date = end_date or inferred_end_date
             f.write(f"arctic_write_symbol --csv_path={csv_path} --db_path={db_path} --library={library} --ticker={ticker} --start_date={start_date} --end_date={end_date} \n")
 
-# %% ../notebooks/07_arctic.ipynb 35
+# %% ../notebooks/07_arctic.ipynb 37
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option(
@@ -866,7 +913,7 @@ def zip_generate_jobs(zip_path, csv_path, etf):
             f.write(f"mkdir {csv_path}/{ticker_till_end}\n")
             f.write(f"/nfs/home/nicolasp/usr/bin/7z x {full} -o{ticker_till_end}\n")
 
-# %% ../notebooks/07_arctic.ipynb 36
+# %% ../notebooks/07_arctic.ipynb 38
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option(
