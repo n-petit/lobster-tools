@@ -3,10 +3,8 @@
 # %% auto 0
 __all__ = ['cfg', 'CONTEXT_SETTINGS', 'O', 'click_db_path', 'click_library', 'formatter_full', 'logger', 'handler', 'Options',
            'apply_options', 'arctic', 'initdb', 'use_both', 'dropdb', 'cool', 'nic', 'read', 'get_arctic_library',
-           'inherit_docstring_from', 'infer_options', 'inherits_from', 'list_libraries', 'list_symbols',
-           'create_library', 'delete_library', 'write', 'say', 'generate_jobs', 'sleepy', 'extract_7z', 'zip', 'dump',
-           'ArcticLibraryInfo', 'info', 'tickers', 'versions', 'dates', 'get_library_info', 'ClickCtxObj', 'ClickCtx',
-           'create', 'ls', 'libraries', 'symbols', 'parse_comma_separated', 'rm', 'library', 'arctic_list_symbols',
+           'ArcticLibraryInfo', 'get_library_info', 'ClickCtxObj', 'ClickCtx', 'create', 'ls', 'libraries', 'symbols',
+           'versions', 'parse_comma_separated', 'dates', 'rm', 'library', 'lib', 'libb', 'arctic_list_symbols',
            'arctic_create_new_library', 'arctic_list_libraries', 'arctic_delete_library', 'arctic_read_symbol',
            'arctic_write_symbol', 'arctic_generate_jobs', 'zip_generate_jobs', 'arctic_dump_all']
 
@@ -145,286 +143,7 @@ def get_arctic_library(db_path, library):
     arctic_library = arctic[library]
     return arctic_library
 
-# %% ../notebooks/07_arctic.ipynb 17
-# TODO: csv_path vs csv_files_path. think if this is a problem...maybe unify?
-class Options:
-    def __init__(self) -> None:
-        self.db_path = click.option("-d", "--db_path", default=cfg.db.db_path, help="Database path")
-        self.library = click.option("-l", "--library", default=cfg.db.library, help="Library name")
-        self.ticker = click.option("-t", "--ticker", required=True, help="ticker to print")
-        self.start_date = click.option("-s", "--start_date", default=None, help="start date")
-        self.end_date = click.option("-e", "--end_date", default=None, help="end date")
-        self.csv_path = click.option("-c", "--csv_path", default=cfg.data_config.csv_files_path, help="csv files path")
-        self.etf = click.option("--etf", default=None, help="restrict to subset specified by ETF members")
-        self.zip_path = click.option("-z", "--zip_path", default="/nfs/lobster_data/lobster_raw/2016", help="zip files path")
-        self.tickers = click.option("--tickers", default=None, multiple=True, type=str, help="tickers to dump")
-        self.max_workers = click.option("-m", "--max_workers", default=20, help="max workers for parallelisation")
-O = Options()
-
-def apply_options(options: list):
-    def decorator(f):
-        for option in reversed(options):
-            f = option(f)
-        return f
-    return decorator
-
-def inherit_docstring_from(source_fn):
-    def decorator(target_fn):
-        target_fn.__doc__ = source_fn.__doc__
-        return target_fn
-    return decorator
-
-def infer_options(func) -> list[Callable]:
-    """Works together with the `auto_apply` to automatically infer arguments.
-    
-    Used together this looks like:
-    @auto_apply(infer_options)
-    """
-    sig = signature(func)
-    param_names = [
-        param.name
-        for param in sig.parameters.values()
-        if param.kind == param.POSITIONAL_OR_KEYWORD
-    ]
-    options_list = [getattr(O, name) for name in param_names]
-    return options_list
-
-def inherits_from(func):
-    """Inherit docstring and options from `func`. Actually this wasn't the best idea. Keep separate"""
-    options_list = infer_options(func)
-
-    # still stlightly confused about the order of the decorators, oh well
-    def decorator(target_fn):
-        @inherit_docstring_from(func)
-        @apply_options(options_list)
-        @wraps(target_fn)
-        def wrapper(*args, **kwargs):
-            return target_fn(*args, **kwargs)
-        return wrapper
-    return decorator
-
-# def simple_inherits_from(func):
-#     """Simple without using functools.wraps"""
-#     options_list = infer_options(func)
-#     def decorator(target_fn):
-#         decorated = apply_options(options_list)(target_fn)
-#         decorated.__doc__ = func.__doc__
-#         return decorated
-#     return decorator
-
-@click.group(context_settings=CONTEXT_SETTINGS)
-def arctic():
-    pass
-
-@arctic.command()
-@apply_options([O.db_path])
-def list_libraries(db_path) -> None:
-    """List arcticdb libraries"""
-    arctic = Arctic(f"lmdb://{db_path}")
-    print(arctic.list_libraries())
-
-@arctic.command()
-@apply_options([O.db_path, O.library])
-def list_symbols(db_path, library) -> None:
-    """List symbols in the arcticdb library."""
-    arctic = Arctic(f"lmdb://{db_path}")
-    print(arctic[library].list_symbols())
-
-@arctic.command()
-@apply_options([O.db_path, O.library])
-def create_library(db_path, library) -> None:
-    """Create a blank new arcticdb library."""
-    arctic = Arctic(f"lmdb://{db_path}")
-    arctic.create_library(library) 
-    print(arctic[library])
-
-@arctic.command()
-@apply_options([O.db_path, O.library])
-@click.confirmation_option(prompt='Are you sure you want to delete the entire library?')
-def delete_library(db_path, library) -> None:
-    """Delete entire arcticdb library"""
-    arctic = Arctic(f"lmdb://{db_path}")
-    arctic.delete_library(library) 
-
-@arctic.command()
-@apply_options([O.db_path, O.library, O.ticker, O.start_date, O.end_date])
-def read(db_path, library, ticker, start_date, end_date,
-):
-    """Read ticker and print head and tail."""
-    arctic = Arctic(f"lmdb://{db_path}")
-
-    if start_date and end_date:
-        start_datetime = pd.Timestamp(f"{start_date}T{NASDAQExchange.exchange_open}")
-        end_datetime = pd.Timestamp(f"{end_date}T{NASDAQExchange.exchange_close}")
-        date_range = (start_datetime, end_datetime)
-        df = arctic[library].read(ticker, date_range=date_range).data
-    else:
-        print("not using start or end dates")
-        df = arctic[library].read(ticker).data
-    
-    print(f"Printing df.head() and df.tail() for ticker {ticker}")
-    print(df.head())
-    print(df.tail())
-
-def _write(
-    db_path,
-    library,
-    csv_path,
-    ticker,
-    start_date,
-    end_date,
-):
-    """Preprocess and write ticker to database."""
-    arctic = Arctic(f"lmdb://{db_path}")
-
-    date_range = (start_date, end_date)
-    data = Data(
-        directory_path=csv_path,
-        ticker=ticker,
-        date_range=date_range,
-        aggregate_duplicates=False,
-    )
-    lobster = Lobster(data=data)
-    df = pd.concat([lobster.messages, lobster.book], axis=1)
-    print(f"head of ticker {ticker}")
-    print(df.head())
-
-    arctic[library].write(symbol=ticker, data=df)
-
-@arctic.command()
-@apply_options([O.db_path, O.library, O.csv_path, O.ticker, O.start_date, O.end_date])
-def write(**kwargs):
-    _write(**kwargs)
-
-
-# if want to also access _say from other functions then need to do this.
-def _say(
-    db_path,
-    library,
-):
-    """Print some really important information"""
-    print(db_path, library)
-
-
-# @arctic.command()
-# @apply_options(infer_options(_say))
-# @inherit_docstring_from(_say)
-# def say(**kwargs):
-#     _say(**kwargs)
-
-@arctic.command()
-@inherits_from(_say)
-def say(**kwargs):
-    _say(**kwargs)
-
-@arctic.command()
-@apply_options([O.db_path, O.library, O.csv_path, O.start_date, O.end_date])
-def generate_jobs(db_path, library, csv_path, start_date, end_date):
-    ticker_date_dict = infer_ticker_to_date_range(csv_path)
-    with open('arctic_commands.txt', 'w') as f:
-        for ticker, (inferred_start_date, inferred_end_date) in ticker_date_dict.items():
-            # if date is None use the inferred date, otherwise use the CLI argument
-            start_date = start_date or inferred_start_date
-            end_date = end_date or inferred_end_date
-            f.write(f"arctic write --csv_path={csv_path} --db_path={db_path} --library={library} --ticker={ticker} --start_date={start_date} --end_date={end_date} \n")
-
-def sleepy(csv_path, folder_info):
-    time.sleep(5)
-    print(csv_path, folder_info.full)
-
-def extract_7z(input_path, output_path):
-    try:
-        subprocess.run(["7z", "x", input_path, f"-o{output_path}"], check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"An error occurred: {str(e)}")
-
-@arctic.command()
-@apply_options([O.zip_path, O.csv_path, O.etf, O.max_workers])
-def zip(zip_path, csv_path, etf, max_workers):
-    folder_infos = infer_ticker_dict(zip_path)
-
-    # filter first
-    if etf:
-        def in_etf(folder_info):
-            return folder_info.ticker in ETFMembers().mapping[etf] + [etf]
-        folder_infos = list(filter(in_etf, folder_infos))
-
-    # commands = [f"mkdir -p {csv_path}/{folder_info.ticker_till_end}\n"
-    #             for folder_info in folder_infos]
-
-    # with open("zip_commands.txt", "w") as f:
-    #     [f.write(command) for command in commands]
-    with ProcessPoolExecutor(max_workers=max_workers) as executor:
-        # outputs_dirs = [folder_info.ticker_till_end for folder_info in folder_infos]
-        futures = [
-            executor.submit(os.mkdir, path=f"{csv_path}/{folder_info.ticker_till_end}")
-            for folder_info in folder_infos
-        ]
-        wait(futures)
-        futures = [
-            executor.submit(extract_7z, input_path=folder_info.full, output_path=f"{csv_path}/{folder_info.ticker_till_end}")
-            for folder_info in folder_infos
-        ]
-
-
-        # for folder_info in folder_infos:
-        #     # print(folder_info.ticker)
-        #     f.write(f"examle: mkdir {csv_path}/{folder_info.ticker_till_end}\n")
-
-
-    # ticker_date_dict = infer_ticker_to_ticker_path(zip_path)
-    # print(ticker_date_dict)
-    # if etf:
-    #     print(ETFMembers().mapping[etf])
-    #     ticker_date_dict = {
-    #         ticker: ticker_path
-    #         for ticker, ticker_path in ticker_date_dict.items()
-    #         if ticker in ETFMembers().mapping[etf] + [etf]
-    #     }
-    # print(ticker_date_dict)
-    # ticker_dict = infer_ticker_dict(zip_path)
-    # with open("zip_commands.txt", "w") as f:
-    #     for ticker, dict_ in ticker_dict.items():
-    #         full = dict_["full"]
-    #         ticker_till_end = dict_["ticker_till_end"]
-    #         f.write(f"mkdir {csv_path}/{ticker_till_end}\n")
-    #         f.write(f"/nfs/home/nicolasp/usr/bin/7z x {full} -o{ticker_till_end}\n")
-
-
-@arctic.command()
-@apply_options([O.db_path, O.library, O.csv_path, O.tickers, O.max_workers])
-def dump(
-    db_path,
-    library,
-    csv_path,
-    tickers,
-    max_workers,
-):
-    """Dump all csv to arctic_db inferring start and end date from folder."""
-    folder_infos = infer_ticker_dict(csv_path)
-    print("inferred from folder")
-    print(folder_infos)
-
-    if tickers:
-        folder_infos = [folder_info for folder_info in folder_infos if folder_info.ticker in tickers]
-
-    print("filtered folder_info after filtering for tickers.")
-    print(folder_infos)
-
-    with ProcessPoolExecutor(max_workers=max_workers) as executor:
-        # small job with only a few dates
-        # futures = [
-        #     executor.submit(write_, csv_path=csv_path, db_path=db_path, library=library, ticker=folder_info.ticker, start_date="2016-01-01", end_date="2016-01-04")
-        #     for folder_info in folder_infos
-        # ]
-        # full job with whole year
-        futures = [
-            executor.submit(_write, csv_path=csv_path, db_path=db_path, library=library, ticker=folder_info.ticker, start_date=folder_info.start_date, end_date=folder_info.end_date)
-            for folder_info in folder_infos
-        ]
-    print('done')
-
-
+# %% ../notebooks/07_arctic.ipynb 19
 @dataclass
 class ArcticLibraryInfo:
     ticker: str
@@ -436,52 +155,7 @@ class ArcticLibraryInfo:
         self.start_date = min(self.dates_ndarray)
         self.end_date = max(self.dates_ndarray)
 
-def _info(db_path, library) -> list[ArcticLibraryInfo]:
-    """Return information about ticker info in database."""
-    arctic = Arctic(f"lmdb://{db_path}")
-
-    arcticdb_infos: list[ArcticLibraryInfo] = []
-    for ticker in arctic[library].list_symbols():
-        q = QueryBuilder()
-        # there is one auction each morning
-        q = q[q.event == Event.CROSS_TRADE.value]
-        df = arctic[library].read(symbol=ticker, query_builder=q).data
-
-        dates_series: pd.Series = df.index.date
-        dates_ndarray: np.ndarray = df.index.to_series().dt.strftime("%Y-%m-%d").values
-        arcticdb_infos.append(
-            ArcticLibraryInfo(ticker=ticker, dates_ndarray=dates_ndarray, dates_series=dates_series)
-        )
-    return arcticdb_infos
-
-
-@arctic.group()
-@inherits_from(_info)
-def info(**kwargs):
-    pass
-
-@info.command()
-@apply_options(infer_options(_info))
-def tickers(db_path, library):
-    """Print tickers in db."""
-    arctic = Arctic(f"lmdb://{db_path}")
-    print(arctic[library].list_symbols())
-
-@info.command()
-@apply_options([O.db_path, O.library])
-def versions(db_path, library):
-    arctic = Arctic(f"lmdb://{db_path}")
-    print(arctic[library].list_versions())
-
-@info.command()
-@apply_options(infer_options(_info))
-def dates(**kwargs):
-    """Print ticker information"""
-    arcticdb_infos = _info(**kwargs)
-    print({x.ticker: (x.start_date, x.end_date) for x in arcticdb_infos})
-
-
-# %% ../notebooks/07_arctic.ipynb 19
+# %% ../notebooks/07_arctic.ipynb 20
 # REFACTORINOOOOO
 
 
@@ -582,7 +256,6 @@ def apply_options(options: list):
 
 class ClickCtxObj(TypedDict):
     """Purely for type hinting. for instance `arctic_library` not always there."""
-
     library: str
     arctic: Arctic
     arctic_library: Library
@@ -730,11 +403,36 @@ def library(ctx: ClickCtx, library):
             f"{arctic_library.list_symbols()}\n"
             "Are you sure you want to permanently delete the library?"
         ):
+            del arctic_library
             arctic.delete_library(library)
     except LibraryNotFound:
         logger.info("No library found to delete.")
 
-# %% ../notebooks/07_arctic.ipynb 29
+@rm.command()
+@click.pass_context
+@click.option(
+    "-l", "--library", required=True, type=str, help="Library to permanently delete"
+)
+# @click.confirmation_option(prompt=f'Do you want to permanently delete the entire library?')
+def lib(ctx: ClickCtx, library):
+    arctic = ctx.obj["arctic"]
+    arctic.delete_library(library)
+
+@rm.command()
+@click.pass_context
+@click.option(
+    "-l", "--library", required=True, type=str, help="Library to permanently delete"
+)
+# @click.confirmation_option(prompt=f'Do you want to permanently delete the entire library?')
+def libb(ctx: ClickCtx, library):
+    arctic = ctx.obj["arctic"]
+    if arctic.has_library(library):
+        if click.confirm("Are you sure you want to permanently delete the library?"):
+            arctic.delete_library(library)
+    else:
+        logger.info("No library found to delete.")
+
+# %% ../notebooks/07_arctic.ipynb 30
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("-d", "--db_path", default=cfg.db.db_path, help="database path")
@@ -745,7 +443,7 @@ def arctic_list_symbols(db_path, library) -> None:
     print(f"Symbols in library {library}")
     print(arctic_library.list_symbols())
 
-# %% ../notebooks/07_arctic.ipynb 30
+# %% ../notebooks/07_arctic.ipynb 31
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("-d", "--db_path", default=cfg.db.db_path, help="database path")
@@ -757,7 +455,7 @@ def arctic_create_new_library(db_path, library) -> None:
     arctic.create_library(library) 
     print(arctic[library])
 
-# %% ../notebooks/07_arctic.ipynb 31
+# %% ../notebooks/07_arctic.ipynb 32
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("-d", "--db_path", default=cfg.db.db_path, help="database path")
@@ -768,7 +466,7 @@ def arctic_list_libraries(db_path) -> None:
     arctic = Arctic(conn)
     print(arctic.list_libraries())
 
-# %% ../notebooks/07_arctic.ipynb 32
+# %% ../notebooks/07_arctic.ipynb 33
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("-d", "--db_path", default=cfg.db.db_path, help="database path")
@@ -790,7 +488,7 @@ def arctic_delete_library(db_path, library) -> None:
     arctic = Arctic(conn)
     arctic.delete_library(library) 
 
-# %% ../notebooks/07_arctic.ipynb 33
+# %% ../notebooks/07_arctic.ipynb 34
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("-d", "--db_path", default=cfg.db.db_path, help="database path")
@@ -815,7 +513,7 @@ def arctic_read_symbol(db_path, library, ticker, start_date, end_date,
     print(df.head())
     print(df.tail())
 
-# %% ../notebooks/07_arctic.ipynb 35
+# %% ../notebooks/07_arctic.ipynb 36
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option(
@@ -860,7 +558,7 @@ def arctic_write_symbol(
 
     arctic_library.write(symbol=ticker, data=df)
 
-# %% ../notebooks/07_arctic.ipynb 36
+# %% ../notebooks/07_arctic.ipynb 37
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option(
@@ -879,7 +577,7 @@ def arctic_generate_jobs(csv_path, db_path, library, start_date, end_date):
             end_date = end_date or inferred_end_date
             f.write(f"arctic_write_symbol --csv_path={csv_path} --db_path={db_path} --library={library} --ticker={ticker} --start_date={start_date} --end_date={end_date} \n")
 
-# %% ../notebooks/07_arctic.ipynb 37
+# %% ../notebooks/07_arctic.ipynb 38
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option(
@@ -913,7 +611,7 @@ def zip_generate_jobs(zip_path, csv_path, etf):
             f.write(f"mkdir {csv_path}/{ticker_till_end}\n")
             f.write(f"/nfs/home/nicolasp/usr/bin/7z x {full} -o{ticker_till_end}\n")
 
-# %% ../notebooks/07_arctic.ipynb 38
+# %% ../notebooks/07_arctic.ipynb 39
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option(
