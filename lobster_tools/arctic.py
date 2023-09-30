@@ -4,7 +4,7 @@
 __all__ = ['cfg', 'CONTEXT_SETTINGS', 'O', 'click_db_path', 'click_library', 'C', 'Options', 'apply_options', 'arctic', 'initdb',
            'use_both', 'dropdb', 'cool', 'nic', 'read', 'get_arctic_library', 'ArcticLibraryInfo', 'get_library_info',
            'ConsoleNotify', 'ClickCtxObj', 'ClickCtx', 'echo', 'init', 'create', 'ls', 'libraries', 'symbols',
-           'versions', 'parse_comma_separated', 'dates', 'rm', 'library', 'etf', 'query', 'prep', 'finfo', 'add',
+           'versions', 'parse_comma_separated', 'dates', 'rm', 'library', 'etf', 'query', 'finfo', 'add', 'write',
            'arctic_list_symbols', 'arctic_create_new_library', 'arctic_list_libraries', 'arctic_delete_library',
            'arctic_read_symbol', 'arctic_write_symbol', 'arctic_generate_jobs', 'zip_generate_jobs', 'arctic_dump_all']
 
@@ -497,14 +497,14 @@ def query(query_template: str):
         query = Template(query_template).substitute(obj)
         click.echo(query)
 
-@arctic.command()
-@click.argument("query_template")
-def prep(query_template: str):
-    "Write a custom query"
-    for line in sys.stdin:
-        obj = json.loads(line.strip())
-        query = Template(query_template).substitute(obj)
-        click.echo(query)
+# @arctic.command()
+# @click.argument("query_template")
+# def prep(query_template: str):
+#     "Write a custom query"
+#     for line in sys.stdin:
+#         obj = json.loads(line.strip())
+#         query = Template(query_template).substitute(obj)
+#         click.echo(query)
 
 @arctic.command()
 @click.option(
@@ -554,6 +554,66 @@ def add(ctx, start_date, end_date, csv_path, zip_path):
 
         # Output the updated JSON object
         click.echo(json.dumps(obj))
+
+
+@arctic.command()
+@click.pass_context
+@click.option(
+    "-c",
+    "--csv_path",
+    default=cfg.data_config.csv_files_path,
+    help="csv files path",
+)
+@click.option(
+    "--ticker",
+    required=True,
+)
+@click.option(
+    "--start_date",
+)
+@click.option(
+    "--end_date",
+)
+def write(
+    ctx,
+    csv_path,
+    ticker,
+    start_date,
+    end_date,
+):
+    """Single thread write ticker to database."""
+    # ok maybe slightly confusing to read ticker, start_date, end_date from stdin
+    # but other things from ctx.obj
+    try:
+        arctic_library = ctx.obj["arctic_library"]
+    except KeyError:
+        raise LibraryNotFound
+    # TODO: as of now only valid if both start and end are provided
+    if bool(start_date) ^ bool(end_date):
+        raise NotImplementedError 
+    date_range = (start_date, end_date) if start_date else None
+
+    data = Data(
+        directory_path=csv_path,
+        ticker=ticker,
+        date_range=date_range,
+        aggregate_duplicates=False,
+    )
+    lobster = Lobster(data=data)
+    df = pd.concat([lobster.messages, lobster.book], axis=1)
+    C.info()
+    print(f"head of ticker {ticker}")
+    print(df.head())
+
+    arctic_library.write(symbol=ticker, data=df)
+
+    C.sucess()
+
+# @arctic.command()
+# @apply_options([O.db_path, O.library, O.csv_path, O.ticker, O.start_date, O.end_date])
+# def write(**kwargs):
+#     _write(**kwargs)
+
 
 # %% ../notebooks/07_arctic.ipynb 31
 # | code-fold: true

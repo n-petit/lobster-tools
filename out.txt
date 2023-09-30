@@ -1,2 +1,2 @@
-arctic write ticker=PSX --start_date=2016-02-02 --library=HELLOTHERE
-arctic write ticker=SLB --start_date=2016-02-02 --library=HELLOTHERE
+arctic write ticker=PSX --start_date=2016-01-04 --end_date=2016-01-04 --library=HELLOTHERE
+arctic write ticker=SLB --start_date=2016-01-04 --end_date=2016-01-04 --library=HELLOTHERE
