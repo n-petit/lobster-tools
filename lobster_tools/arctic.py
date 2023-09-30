@@ -3,16 +3,18 @@
 # %% auto 0
 __all__ = ['cfg', 'CONTEXT_SETTINGS', 'O', 'click_db_path', 'click_library', 'C', 'Options', 'apply_options', 'arctic', 'initdb',
            'use_both', 'dropdb', 'cool', 'nic', 'read', 'get_arctic_library', 'ArcticLibraryInfo', 'get_library_info',
-           'ConsoleNotify', 'ClickCtxObj', 'ClickCtx', 'echo', 'init_autocomplete', 'create', 'ls', 'libraries',
-           'symbols', 'versions', 'parse_comma_separated', 'dates', 'rm', 'library', 'arctic_list_symbols',
-           'arctic_create_new_library', 'arctic_list_libraries', 'arctic_delete_library', 'arctic_read_symbol',
-           'arctic_write_symbol', 'arctic_generate_jobs', 'zip_generate_jobs', 'arctic_dump_all']
+           'ConsoleNotify', 'ClickCtxObj', 'ClickCtx', 'echo', 'init', 'create', 'ls', 'libraries', 'symbols',
+           'versions', 'parse_comma_separated', 'dates', 'rm', 'library', 'etf', 'query', 'prep', 'finfo', 'add',
+           'arctic_list_symbols', 'arctic_create_new_library', 'arctic_list_libraries', 'arctic_delete_library',
+           'arctic_read_symbol', 'arctic_write_symbol', 'arctic_generate_jobs', 'zip_generate_jobs', 'arctic_dump_all']
 
 # %% ../notebooks/07_arctic.ipynb 4
 import os
 
 import re
 import gc
+import json
+from string import Template
 import click
 from click.testing import CliRunner
 from arcticdb import Arctic, QueryBuilder
@@ -29,6 +31,7 @@ from lobster_tools.config import (
     Overrides,
     NASDAQExchange,
     ETFMembers,
+    etf_to_equities,
     register_configs,
     get_config,
 )
@@ -40,7 +43,7 @@ import logging
 from logging import Logger
 from datetime import date
 from typing import Callable, TypedDict, Protocol, NotRequired, Required, cast
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import time
 from inspect import signature
 from functools import wraps
@@ -304,7 +307,7 @@ def arctic(ctx, db_path, library):
 @arctic.command()
 @click.pass_context
 def echo(ctx: ClickCtx) -> None:
-    """Echo back inputs."""
+    """Echo back inputs"""
     click.echo(pformat(ctx.obj))
 
 
@@ -319,8 +322,8 @@ def echo(ctx: ClickCtx) -> None:
 
 
 @arctic.command()
-def init_autocomplete():
-    """Initialise autocomplete for arctic CLI."""
+def init():
+    """Initialise autocomplete for arctic CLI"""
     # TODO: improve performance of CLI
     os.system("_ARCTIC_COMPLETE=bash_source arctic > ~/.arctic-complete.bash")
 
@@ -347,7 +350,7 @@ def init_autocomplete():
 @arctic.command()
 @click.pass_context
 def create(ctx: ClickCtx) -> None:
-    """Create a blank new arcticdb library."""
+    """Create a blank library"""
     arctic = ctx.obj["arctic"]
     library = ctx.obj["library"]
     arctic.create_library(library)
@@ -357,7 +360,7 @@ def create(ctx: ClickCtx) -> None:
 @arctic.group()
 @click.pass_context
 def ls(ctx: ClickCtx):
-    """List information about database."""
+    "List information about a library"
     # NOTE: Using word list clashed with python type hints!"""
     pass
 
@@ -436,11 +439,12 @@ def dates(ctx: ClickCtx, tickers, all):
 @arctic.group()
 @click.pass_context
 def rm(ctx: ClickCtx):
-    """List information about database."""
+    "Remove commands"
     # NOTE: Using word del clashed with python!
     pass
 
 
+# TODO: make library an argument here rather than in arctic
 @rm.command()
 @click.pass_context
 # @click.option(
@@ -477,6 +481,79 @@ def library(ctx: ClickCtx):
         else:
             raise click.Abort()
 
+
+@arctic.command()
+@click.argument("etf")
+def etf(etf):
+    "Output constituents of ETF including the ETF itself"
+    click.echo("\n".join([etf] + etf_to_equities[etf]))
+
+@arctic.command()
+@click.argument("query_template")
+def query(query_template: str):
+    "Write a custom query"
+    for line in sys.stdin:
+        obj = json.loads(line.strip())
+        query = Template(query_template).substitute(obj)
+        click.echo(query)
+
+@arctic.command()
+@click.argument("query_template")
+def prep(query_template: str):
+    "Write a custom query"
+    for line in sys.stdin:
+        obj = json.loads(line.strip())
+        query = Template(query_template).substitute(obj)
+        click.echo(query)
+
+@arctic.command()
+@click.option(
+    "-f",
+    "--files_path",
+    default=cfg.data_config.csv_files_path,
+    help="files path",
+)
+def finfo(files_path):
+    "Output "
+    l = infer_ticker_dict(files_path)
+    l = [asdict(x) for x in l]
+    # l = [x.append()]
+    l = [json.dumps(x) for x in l]
+    # l = [json.dumps(asdict(x)) for x in l]
+    click.echo("\n".join(l))
+
+@arctic.command()
+@click.pass_context
+@click.option(
+    "-s", "--start_date", default=None, help="start date"
+)
+@click.option("-e", "--end_date", default=None, help="end date")
+@click.option(
+    "-c",
+    "--csv_path",
+    default=cfg.data_config.csv_files_path,
+    help="csv files path",
+)
+@click.option(
+    "-z",
+    "--zip_path",
+    default="/nfs/lobster_data/lobster_raw/2016",
+    help="zip files path",
+)
+def add(ctx, start_date, end_date, csv_path, zip_path):
+    "Add extra fields to JSON objects read from stdin"
+    for line in sys.stdin:
+        obj = json.loads(line.strip())
+        
+        obj["library"] = ctx.obj["library"]
+        obj["db_path"] = ctx.obj["db_path"]
+        obj['csv_path'] = csv_path
+        obj['zip_path'] = zip_path
+        if start_date: obj['start_date'] = start_date
+        if end_date: obj['end_date'] = end_date
+
+        # Output the updated JSON object
+        click.echo(json.dumps(obj))
 
 # %% ../notebooks/07_arctic.ipynb 31
 # | code-fold: true
