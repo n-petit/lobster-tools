@@ -3,10 +3,11 @@
 # %% auto 0
 __all__ = ['cfg', 'CONTEXT_SETTINGS', 'O', 'click_db_path', 'click_library', 'C', 'Options', 'apply_options', 'arctic', 'initdb',
            'use_both', 'dropdb', 'cool', 'nic', 'read', 'get_arctic_library', 'ArcticLibraryInfo', 'get_library_info',
-           'ConsoleNotify', 'ClickCtxObj', 'ClickCtx', 'echo', 'init', 'create', 'ls', 'libraries', 'symbols',
-           'versions', 'parse_comma_separated', 'dates', 'rm', 'library', 'etf', 'query', 'finfo', 'add', 'write',
-           'arctic_list_symbols', 'arctic_create_new_library', 'arctic_list_libraries', 'arctic_delete_library',
-           'arctic_read_symbol', 'arctic_write_symbol', 'arctic_generate_jobs', 'zip_generate_jobs', 'arctic_dump_all']
+           'ConsoleNotify', 'ClickCtxObj', 'ClickCtx', 'etf', 'pfmt', 'echo', 'init', 'create', 'ls', 'libraries',
+           'symbols', 'versions', 'parse_comma_separated', 'dates', 'rm', 'library', 'query', 'filter', 'finfo',
+           'attach', 'write', 'arctic_list_symbols', 'arctic_create_new_library', 'arctic_list_libraries',
+           'arctic_delete_library', 'arctic_read_symbol', 'arctic_write_symbol', 'arctic_generate_jobs',
+           'zip_generate_jobs', 'arctic_dump_all']
 
 # %% ../notebooks/07_arctic.ipynb 4
 import os
@@ -280,6 +281,23 @@ class ClickCtx(Protocol):
     obj: ClickCtxObj
 
 
+@click.command()
+@click.argument("etf")
+@click.option(
+    "-s", "--sep", default="\n", help="separator"
+)
+def etf(etf, sep):
+    "Output constituents of ETF including the ETF itself"
+    click.echo(sep.join([etf] + etf_to_equities[etf]))
+
+@click.command()
+def pfmt():
+    "If you don't want to install jq you can use this instead."
+    # NOTE: pformat clashed with pprint.pformat
+    for line in sys.stdin:
+        obj = json.loads(line.strip())
+        click.echo(pformat(obj))
+
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.option(
     "-d", "--db_path", default=cfg.db.db_path, envvar="DB_PATH", help="Database path"
@@ -482,20 +500,26 @@ def library(ctx: ClickCtx):
             raise click.Abort()
 
 
-@arctic.command()
-@click.argument("etf")
-def etf(etf):
-    "Output constituents of ETF including the ETF itself"
-    click.echo("\n".join([etf] + etf_to_equities[etf]))
 
 @arctic.command()
 @click.argument("query_template")
 def query(query_template: str):
-    "Write a custom query"
+    "Write a custom query using a string template."
     for line in sys.stdin:
         obj = json.loads(line.strip())
         query = Template(query_template).substitute(obj)
         click.echo(query)
+
+
+
+@arctic.command()
+@click.argument("tickers", nargs=-1)
+def filter(tickers: tuple):
+    "Filter by ticker. Reads from stdin and writes to stdout."
+    for line in sys.stdin:
+        obj = json.loads(line.strip())
+        if obj['ticker'] in tickers:
+            click.echo(json.dumps(obj))
 
 # @arctic.command()
 # @click.argument("query_template")
@@ -517,31 +541,31 @@ def finfo(files_path):
     "Output "
     l = infer_ticker_dict(files_path)
     l = [asdict(x) for x in l]
-    # l = [x.append()]
     l = [json.dumps(x) for x in l]
-    # l = [json.dumps(asdict(x)) for x in l]
     click.echo("\n".join(l))
 
 @arctic.command()
 @click.pass_context
 @click.option(
-    "-s", "--start_date", default=None, help="start date"
+    "-s", "--start_date", envvar="ARCTIC_START_DATE", help="start date"
 )
-@click.option("-e", "--end_date", default=None, help="end date")
+@click.option("-e", "--end_date", envvar="END_DATE", help="end date")
 @click.option(
     "-c",
     "--csv_path",
     default=cfg.data_config.csv_files_path,
+    envvar="CSV_PATH",
     help="csv files path",
 )
 @click.option(
     "-z",
     "--zip_path",
     default="/nfs/lobster_data/lobster_raw/2016",
+    envvar="ZIP_PATH",
     help="zip files path",
 )
-def add(ctx, start_date, end_date, csv_path, zip_path):
-    "Add extra fields to JSON objects read from stdin"
+def attach(ctx, start_date, end_date, csv_path, zip_path):
+    "Add extra metadata to JSON read from stdin."
     for line in sys.stdin:
         obj = json.loads(line.strip())
         
@@ -549,10 +573,12 @@ def add(ctx, start_date, end_date, csv_path, zip_path):
         obj["db_path"] = ctx.obj["db_path"]
         obj['csv_path'] = csv_path
         obj['zip_path'] = zip_path
-        if start_date: obj['start_date'] = start_date
-        if end_date: obj['end_date'] = end_date
 
-        # Output the updated JSON object
+        if start_date:
+            obj['start_date'] = start_date
+        if end_date: 
+            obj['end_date'] = end_date
+
         click.echo(json.dumps(obj))
 
 
@@ -582,8 +608,8 @@ def write(
     end_date,
 ):
     """Single thread write ticker to database."""
-    # ok maybe slightly confusing to read ticker, start_date, end_date from stdin
-    # but other things from ctx.obj
+    # i guess this interface is maybe not structured the best 
+    # some stuff from arctic ctx.obj some stuff for this method.
     try:
         arctic_library = ctx.obj["arctic_library"]
     except KeyError:
