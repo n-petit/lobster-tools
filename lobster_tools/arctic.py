@@ -2,12 +2,12 @@
 
 # %% auto 0
 __all__ = ['cfg', 'CONTEXT_SETTINGS', 'O', 'click_db_path', 'click_library', 'C', 'Options', 'apply_options', 'arctic', 'initdb',
-           'use_both', 'dropdb', 'cool', 'nic', 'read', 'get_arctic_library', 'ArcticLibraryInfo', 'get_library_info',
-           'ConsoleNotify', 'ClickCtxObj', 'ClickCtx', 'etf', 'pfmt', 'echo', 'init', 'create', 'ls', 'libraries',
-           'symbols', 'versions', 'parse_comma_separated', 'dates', 'rm', 'library', 'query', 'filter', 'finfo',
-           'attach', 'write', 'arctic_list_symbols', 'arctic_create_new_library', 'arctic_list_libraries',
-           'arctic_delete_library', 'arctic_read_symbol', 'arctic_write_symbol', 'arctic_generate_jobs',
-           'zip_generate_jobs', 'arctic_dump_all']
+           'use_both', 'dropdb', 'cool', 'nic', 'read', 'get_arctic_library', 'ArcticLibraryInfo', 'demo',
+           'get_library_info', 'ConsoleNotify', 'ClickCtxObj', 'ClickCtx', 'etf', 'pfmt', 'echo', 'init', 'create',
+           'ls', 'libraries', 'symbols', 'versions', 'parse_comma_separated', 'dates', 'rm', 'library', 'query',
+           'filter', 'finfo', 'attach', 'single_write', 'multi_write', 'arctic_list_symbols',
+           'arctic_create_new_library', 'arctic_list_libraries', 'arctic_delete_library', 'arctic_read_symbol',
+           'arctic_write_symbol', 'arctic_generate_jobs', 'zip_generate_jobs', 'arctic_dump_all']
 
 # %% ../notebooks/07_arctic.ipynb 4
 import os
@@ -49,7 +49,7 @@ import time
 from inspect import signature
 from functools import wraps
 
-from concurrent.futures import ProcessPoolExecutor, wait
+from concurrent.futures import ProcessPoolExecutor, wait, as_completed
 import subprocess
 
 # %% ../notebooks/07_arctic.ipynb 6
@@ -170,6 +170,20 @@ CONTEXT_SETTINGS = dict(
 )
 
 # %% ../notebooks/07_arctic.ipynb 21
+def demo(**kwargs):
+    click.echo(kwargs)
+    print(kwargs, flush=True)
+
+# %% ../notebooks/07_arctic.ipynb 22
+def _single_write_within_multi_write(arctic_library, data):
+    lobster = Lobster(data=data)
+    df = pd.concat([lobster.messages, lobster.book], axis=1)
+    print(df.head())
+
+    arctic_library.write(symbol=data.ticker, data=df)
+    print(f"finished writing ticker {data.ticker}")
+
+# %% ../notebooks/07_arctic.ipynb 23
 # REFACTORINOOOOO
 
 
@@ -465,12 +479,6 @@ def rm(ctx: ClickCtx):
 # TODO: make library an argument here rather than in arctic
 @rm.command()
 @click.pass_context
-# @click.option(
-#     "-l",
-#     "--library",
-#     required=True,
-#     help="Confirm the library which you wish to delete",
-# )
 def library(ctx: ClickCtx):
     arctic = ctx.obj["arctic"]
     library = ctx.obj["library"]
@@ -600,14 +608,14 @@ def attach(ctx, start_date, end_date, csv_path, zip_path):
 @click.option(
     "--end_date",
 )
-def write(
+def single_write(
     ctx,
     csv_path,
     ticker,
     start_date,
     end_date,
 ):
-    """Single thread write ticker to database."""
+    """Single thread write ticker to database. Useful in conjunction with arctic query."""
     # i guess this interface is maybe not structured the best 
     # some stuff from arctic ctx.obj some stuff for this method.
     try:
@@ -635,13 +643,120 @@ def write(
 
     C.sucess()
 
+@arctic.command()
+@click.pass_context
+def multi_write(ctx):
+    try:
+        arctic_library = ctx.obj["arctic_library"]
+    except KeyError:
+        raise LibraryNotFound
+
+    with ProcessPoolExecutor(max_workers=20) as executor:
+        futures = []
+        for line in sys.stdin:
+            obj = json.loads(line.strip())
+            
+            csv_path = obj.get("csv_path")
+            # db_path = obj.get("db_path")
+            ticker = obj.get("ticker")
+            start_date = obj.get("start_date")
+            end_date = obj.get("end_date")
+            
+            if bool(start_date) ^ bool(end_date):
+                raise NotImplementedError 
+            date_range = (start_date, end_date) if start_date else None
+
+            data = Data(
+                directory_path=csv_path,
+                ticker=ticker,
+                date_range=date_range,
+                aggregate_duplicates=False,
+            )
+            
+            # executor.submit(_single_write_within_multi_write, data)
+            # future = executor.submit(demo, csv_path=csv_path, db_path=db_path, ticker=ticker, start_date=start_date, end_date=end_date)
+            future = executor.submit(_single_write_within_multi_write, arctic_library=arctic_library, data=data)
+            futures.append(future)
+
+
+            for f in as_completed(futures):
+                print(f.result())
+
+# rubbish:
+# @arctic.command()
+# @click.pass_context
+# def fd_multi_write(
+#     ctx,
+# ):
+#     """BAKCWARDS>>>Multithreaded write database. Reads JSON object (one per line) from stdin and writes straight to database."""
+#     # i guess this implementation is slightly more straightforward
+#     # but still i'm using the library from context, and not the JSON object..
+#     # actually quite hard to find something natural
+#     # if env vars are set then the usage is straightforward. otherwise quite counterintuitive
+#     try:
+#         arctic_library = ctx.obj["arctic_library"]
+#     except KeyError:
+#         raise LibraryNotFound
+    
+#     with ProcessPoolExecutor(max_workers=20) as executor:
+#     for line in sys.stdin:
+#         obj = json.loads(line.strip())
+#         csv_path = obj["csv_path"]
+#         ticker = obj["ticker"]
+#         start_date = obj["start_date"]
+#         end_date = obj["end_date"]
+
+#         # TODO: as of now only valid if both start and end are provided
+#         if bool(start_date) ^ bool(end_date):
+#             raise NotImplementedError 
+#         date_range = (start_date, end_date) if start_date else None
+
+#         data = Data(
+#             directory_path=csv_path,
+#             ticker=ticker,
+#             date_range=date_range,
+#             aggregate_duplicates=False,
+#         )
+        
+
+#         # parallelise only the computationally demanding part from here
+#             executor.submit(_single_write_within_multi_write, arctic_library=arctic_library, data=data)
+#             # executor.submit(demo, csv_path=csv_path, db_path=db_path, library=library, ticker=ticker, start_date=start_date, end_date=end_date)
+#                 # actual job
+#                 # executor.submit(_single_write_within_multi_write, csv_path=csv_path, db_path=db_path, library=library, ticker=ticker, start_date=start_date, end_date=end_date)
+
+#                 # futures = [
+#                 #     executor.submit(_write, csv_path=csv_path, db_path=db_path, library=library, ticker=folder_info.ticker, start_date=folder_info.start_date, end_date=folder_info.end_date)
+#                 #     for folder_info in folder_infos
+#                 # ]
+#         C.sucess()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # @arctic.command()
 # @apply_options([O.db_path, O.library, O.csv_path, O.ticker, O.start_date, O.end_date])
 # def write(**kwargs):
 #     _write(**kwargs)
 
 
-# %% ../notebooks/07_arctic.ipynb 31
+# %% ../notebooks/07_arctic.ipynb 30
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("-d", "--db_path", default=cfg.db.db_path, help="database path")
@@ -652,7 +767,7 @@ def arctic_list_symbols(db_path, library) -> None:
     print(f"Symbols in library {library}")
     print(arctic_library.list_symbols())
 
-# %% ../notebooks/07_arctic.ipynb 32
+# %% ../notebooks/07_arctic.ipynb 31
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("-d", "--db_path", default=cfg.db.db_path, help="database path")
@@ -664,7 +779,7 @@ def arctic_create_new_library(db_path, library) -> None:
     arctic.create_library(library) 
     print(arctic[library])
 
-# %% ../notebooks/07_arctic.ipynb 33
+# %% ../notebooks/07_arctic.ipynb 32
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("-d", "--db_path", default=cfg.db.db_path, help="database path")
@@ -675,7 +790,7 @@ def arctic_list_libraries(db_path) -> None:
     arctic = Arctic(conn)
     print(arctic.list_libraries())
 
-# %% ../notebooks/07_arctic.ipynb 34
+# %% ../notebooks/07_arctic.ipynb 33
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("-d", "--db_path", default=cfg.db.db_path, help="database path")
@@ -697,7 +812,7 @@ def arctic_delete_library(db_path, library) -> None:
     arctic = Arctic(conn)
     arctic.delete_library(library) 
 
-# %% ../notebooks/07_arctic.ipynb 35
+# %% ../notebooks/07_arctic.ipynb 34
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("-d", "--db_path", default=cfg.db.db_path, help="database path")
@@ -722,7 +837,7 @@ def arctic_read_symbol(db_path, library, ticker, start_date, end_date,
     print(df.head())
     print(df.tail())
 
-# %% ../notebooks/07_arctic.ipynb 37
+# %% ../notebooks/07_arctic.ipynb 36
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option(
@@ -767,7 +882,7 @@ def arctic_write_symbol(
 
     arctic_library.write(symbol=ticker, data=df)
 
-# %% ../notebooks/07_arctic.ipynb 38
+# %% ../notebooks/07_arctic.ipynb 37
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option(
@@ -786,7 +901,7 @@ def arctic_generate_jobs(csv_path, db_path, library, start_date, end_date):
             end_date = end_date or inferred_end_date
             f.write(f"arctic_write_symbol --csv_path={csv_path} --db_path={db_path} --library={library} --ticker={ticker} --start_date={start_date} --end_date={end_date} \n")
 
-# %% ../notebooks/07_arctic.ipynb 39
+# %% ../notebooks/07_arctic.ipynb 38
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option(
@@ -820,7 +935,7 @@ def zip_generate_jobs(zip_path, csv_path, etf):
             f.write(f"mkdir {csv_path}/{ticker_till_end}\n")
             f.write(f"/nfs/home/nicolasp/usr/bin/7z x {full} -o{ticker_till_end}\n")
 
-# %% ../notebooks/07_arctic.ipynb 40
+# %% ../notebooks/07_arctic.ipynb 39
 # | code-fold: true
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option(
