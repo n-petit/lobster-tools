@@ -5,7 +5,7 @@ __all__ = ['cfg', 'CONTEXT_SETTINGS', 'O', 'click_db_path', 'click_library', 'C'
            'use_both', 'dropdb', 'cool', 'nic', 'read', 'get_arctic_library', 'ArcticLibraryInfo', 'demo',
            'get_library_info', 'ConsoleNotify', 'ClickCtxObj', 'ClickCtx', 'etf', 'pfmt', 'echo', 'init', 'create',
            'ls', 'libraries', 'symbols', 'versions', 'parse_comma_separated', 'dates', 'rm', 'library', 'query',
-           'filter', 'finfo', 'attach', 'single_write', 'multi_write', 'arctic_list_symbols',
+           'filter', 'finfo', 'attach', 'single_write', 'mp_single_write', 'multi_write', 'arctic_list_symbols',
            'arctic_create_new_library', 'arctic_list_libraries', 'arctic_delete_library', 'arctic_read_symbol',
            'arctic_write_symbol', 'arctic_generate_jobs', 'zip_generate_jobs', 'arctic_dump_all']
 
@@ -36,7 +36,7 @@ from lobster_tools.config import (
     register_configs,
     get_config,
 )
-from .preprocessing import Data, Lobster, Event, infer_ticker_to_date_range, infer_ticker_to_ticker_path, infer_ticker_dict
+from .preprocessing import Data, Lobster, MPLobster, Event, infer_ticker_to_date_range, infer_ticker_to_ticker_path, infer_ticker_dict, EhMPLobster
 import sys
 import pandas as pd
 import numpy as np
@@ -319,10 +319,16 @@ def pfmt():
 @click.option(
     "-l", "--library", default=cfg.db.library, envvar="LIBRARY", help="Library name"
 )
+@click.option(
+    "--s3", is_flag=True, default=True, help="Use s3 bucket. Temp fix."
+)
 @click.pass_context
-def arctic(ctx, db_path, library):
+def arctic(ctx, db_path, library, s3):
     ctx.ensure_object(dict)
-    arctic = Arctic(f"lmdb://{db_path}")
+    if s3:
+        arctic = Arctic('s3://163.1.179.45:9100:lobster?access=minioadmin&secret=minioadmin')
+    else:
+        arctic = Arctic(f"lmdb://{db_path}")
     ctx.obj.update(
         {
             "arctic": arctic,
@@ -645,6 +651,65 @@ def single_write(
 
 @arctic.command()
 @click.pass_context
+@click.option(
+    "-c",
+    "--csv_path",
+    default=cfg.data_config.csv_files_path,
+    help="csv files path",
+)
+@click.option(
+    "--ticker",
+    required=True,
+)
+@click.option(
+    "--date_range", nargs=2, type=str
+)
+@click.option(
+    "--update",
+    is_flag=True,
+    default=False,
+    help="use update instead of write"
+)
+def mp_single_write(
+    ctx,
+    csv_path,
+    ticker,
+    date_range,
+    update,
+):
+    """Single thread write ticker to database. Useful in conjunction with arctic query."""
+    # i guess this interface is maybe not structured the best 
+    # some stuff from arctic ctx.obj some stuff for this method.
+    # os.nice(0)
+    try:
+        arctic_library = ctx.obj["arctic_library"]
+    except KeyError:
+        raise LibraryNotFound
+
+    data = Data(
+        directory_path=csv_path,
+        ticker=ticker,
+        date_range=date_range,
+        load='both',
+        aggregate_duplicates=False,
+    )
+    click.echo(data)
+    lobster = MPLobster(data=data)
+
+    df = pd.concat([lobster.messages, lobster.book], axis=1)
+    C.info()
+    print(f"head of ticker {ticker}")
+    print(df.head())
+
+    if update:
+        # for batched writes for large tickers like SPY
+        arctic_library.update(symbol=ticker, data=df)
+    else: 
+        arctic_library.write(symbol=ticker, data=df)
+    C.sucess()
+
+@arctic.command()
+@click.pass_context
 def multi_write(ctx):
     try:
         arctic_library = ctx.obj["arctic_library"]
@@ -730,24 +795,6 @@ def multi_write(ctx):
 #                 #     for folder_info in folder_infos
 #                 # ]
 #         C.sucess()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # @arctic.command()

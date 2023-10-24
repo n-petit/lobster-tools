@@ -15,6 +15,7 @@ from .config import MainConfig, Overrides, register_configs, get_config
 from .preprocessing import *
 from .querying import *
 from .flow_decomposition import *
+from .config import etf_to_equities
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from itertools import product

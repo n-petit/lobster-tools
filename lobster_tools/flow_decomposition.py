@@ -5,8 +5,8 @@ __all__ = ['tolerances', 'resample_freq', 'equities', 'etfs', 'date_range', 'str
            'all_index', 'empty_series', 'aggregate_before_after', 'aggregate_same_sign_opposite_sign', 'get_times',
            'str_to_time', 'add_neighbors', 'drop_all_neighbor_cols', 'col_to_dtype_inputing_mapping',
            'multi_index_to_single_index', 'groupby_index_to_series', 'compute_features', 'append_features',
-           'count_non_null', 'marginalise', 'add_arb_tag', 'drop_features', 'split_isolated_non_isolated', 'ofi',
-           'ofis', 'not_ofi', 'compute_ofi', 'resample_mid', 'restrict_common_index', 'markout_returns',
+           'count_non_null', 'marginalise', 'add_arb_tag', 'drop_features', 'split_isolated_non_isolated', 'old_ofi',
+           'ofis', 'not_ofi', 'old_compute_ofi', 'resample_mid', 'restrict_common_index', 'markout_returns',
            'clip_df_times', 'clip_for_markout']
 
 # %% ../notebooks/04_flow_decomposition.ipynb 4
@@ -51,12 +51,12 @@ str_to_nanoseconds = lambda x: int(str_to_time(x, convert_to="ns"))
 def add_neighbors(
     etf_executions: pd.DataFrame,
     equity_executions: pd.DataFrame,
-    tolerance: str | list[str],
+    tolerances: list[str],
 ):
     """Annotate the etf execution dataframe with the indices of the neighbouring equity executions.
     Note: Building the KDTree on the equity dataframe.
     """
-    # new addition so it's not inplace    
+    # new addition so it's not inplace
     etf_executions = etf_executions.copy()
 
     etf_executions_times = get_times(etf_executions)
@@ -66,20 +66,21 @@ def add_neighbors(
     def _add_neighbors_col(etf_executions, tolerance_str):
         tolerance_in_nanoseconds = str_to_nanoseconds(tolerance_str)
         etf_executions[f"_{tolerance_str}_neighbors"] = equity_tree.query_radius(etf_executions_times, r=tolerance_in_nanoseconds)
-
         etf_executions[f"_{tolerance_str}_neighbors"] = etf_executions[f"_{tolerance_str}_neighbors"].apply(
             lambda x: None if x.size == 0 else x
         )
 
-    if isinstance(tolerance, str):
+        # np_neighbors = equity_tree.query_radius(etf_executions_times, r=tolerance_in_nanoseconds)
+        # mask = np.zeros(len(np_neighbors), dtype=bool) # is this necessary?
+        # mask = np.array([x.size == 0] for x in np_neighbors)
+        # np_neighbors[mask] = None
+        # etf_executions[f"_{tolerance_str}_neighbors"] = np_neighbors
+
+        # could potentially do ufunc also
+
+    for tolerance in tolerances:
         _add_neighbors_col(etf_executions, tolerance)
 
-    elif isinstance(tolerance, list):
-        for tolerance in tolerance:
-            _add_neighbors_col(etf_executions, tolerance)
-    else:
-        raise ValueError("tolerance_str must be a string or a list of strings")
-    
     return etf_executions
 
 
@@ -178,20 +179,25 @@ def compute_features(
 
 
 # %% ../notebooks/04_flow_decomposition.ipynb 10
-def append_features(etf_executions: pd.DataFrame, equity_executions: pd.DataFrame) -> pd.DataFrame:
+def append_features(
+    etf_executions: pd.DataFrame, equity_executions: pd.DataFrame
+) -> pd.DataFrame:
     "Note that this function is not inplace."
     # infer tolerances from column names
     column_names = etf_executions.filter(regex="neighbors").columns.values.tolist()
     tolerances = [i.split("_")[1] for i in column_names]
-    
+
     # TODO: check if its faster to partial compute features with equity executions
-    
+
     features_dfs = []
     for tolerance in tolerances:
         # add_neighbors(df, equity_executions, tolerance)
         features = etf_executions.apply(
             lambda row: compute_features(
-                row.name, row.direction, row[f"_{tolerance}_neighbors"], equity_executions=equity_executions,
+                row.name,
+                row.direction,
+                row[f"_{tolerance}_neighbors"],
+                equity_executions=equity_executions,
             ),
             axis=1,
             result_type="expand",
@@ -203,7 +209,6 @@ def append_features(etf_executions: pd.DataFrame, equity_executions: pd.DataFram
 
     features_df = pd.concat(features_dfs, axis=1)
     return pd.concat([etf_executions, features_df], axis=1)
-
 
 # %% ../notebooks/04_flow_decomposition.ipynb 11
 def count_non_null(df, tolerance):
@@ -281,7 +286,7 @@ def split_isolated_non_isolated(etf_executions: pd.DataFrame, tolerance) -> tupl
     return etf_executions[isolated_indices].copy(deep=True), etf_executions[~isolated_indices].copy(deep=True)
 
 # %% ../notebooks/04_flow_decomposition.ipynb 17
-def ofi(df: pd.DataFrame, resample_freq: str = "5T", suffix: str | None = None) -> pd.DataFrame:
+def old_ofi(df: pd.DataFrame, resample_freq: str = "5T", suffix: str | None = None) -> pd.DataFrame:
     suffix = "" if suffix is None else ("_" + suffix)
     
     ofi_series = []
@@ -356,7 +361,7 @@ def not_ofi(df: pd.DataFrame, resample_freq: str = "5T", suffix: str | None = No
 # TODO: etfs is a global variable in this function. compute it within the function or pass it as an argument
 
 
-def compute_ofi(
+def old_compute_ofi(
     df: pd.DataFrame, resample_freq: str = "5T", arb_filter: Optional[str] = None
 ) -> pd.DataFrame:
     """Computes OFI by removing the arbitrage flows and resampling to 5 minutes."""
@@ -396,7 +401,7 @@ def resample_mid(df: pd.DataFrame, resample_freq="5T"):
     return df.resample(resample_freq, label="right").last().eval("mid = bid_price_1 + (ask_price_1 - bid_price_1) / 2")["mid"]
 
 # %% ../notebooks/04_flow_decomposition.ipynb 26
-def restrict_common_index(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+def restrict_common_index(df1: pd.DataFrame, df2: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Restrict two dataframes to their common index."""
     common_index = df1.index.intersection(df2.index)
     return df1.loc[common_index], df2.loc[common_index]
