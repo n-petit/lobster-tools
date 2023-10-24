@@ -159,6 +159,9 @@ private
 # outputs folder
 outputs
 
+# features folder
+features
+
 # ignore scripts folder for now
 scripts
 
