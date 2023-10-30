@@ -451,7 +451,7 @@ def finfo(files_path):
     help="zip files path",
 )
 def attach(ctx, start_date, end_date, csv_path, zip_path):
-    "Add extra metadata to JSON read from stdin."
+    "Attach extra matadata to JSON objects read from stdin."
     for line in sys.stdin:
         obj = json.loads(line.strip())
 
@@ -480,30 +480,18 @@ def attach(ctx, start_date, end_date, csv_path, zip_path):
     "--ticker",
     required=True,
 )
-@click.option(
-    "--start_date",
-)
-@click.option(
-    "--end_date",
-)
+@click.option("--date_range", nargs=2, type=str)
 def single_write(
     ctx,
     csv_path,
     ticker,
-    start_date,
-    end_date,
+    date_range,
 ):
-    """Single threaded write to database for a single ticker. Useful in conjunction with arctic query."""
-    # i guess this interface is maybe not structured the best
-    # some stuff from arctic ctx.obj some stuff for this method.
+    """Single threaded write to database for a single ticker."""
     try:
         arctic_library = ctx.obj["arctic_library"]
     except KeyError:
         raise LibraryNotFound
-    # NOTE: as of now only valid if both start and end are provided
-    if bool(start_date) ^ bool(end_date):
-        raise NotImplementedError
-    date_range = (start_date, end_date) if start_date else None
 
     data = Data(
         directory_path=csv_path,
@@ -511,6 +499,7 @@ def single_write(
         date_range=date_range,
         aggregate_duplicates=False,
     )
+
     lobster = Lobster(data=data)
     df = pd.concat([lobster.messages, lobster.book], axis=1)
     C.info()
@@ -538,14 +527,21 @@ def single_write(
 @click.option(
     "--update", is_flag=True, default=False, help="use update instead of write"
 )
+@click.option(
+    "--mp",
+    is_flag=True,
+    default=True,
+    help="Use multiprocessing to load data.",
+)
 def mp_single_write(
     ctx,
     csv_path,
     ticker,
     date_range,
     update,
+    mp,
 ):
-    """Multiprocessing write to database for a single ticker."""
+    """Write single ticker to database."""
     try:
         arctic_library = ctx.obj["arctic_library"]
     except KeyError:
@@ -559,7 +555,10 @@ def mp_single_write(
         aggregate_duplicates=False,
     )
     click.echo(data)
-    lobster = MPLobster(data=data)
+    if mp:
+        lobster = MPLobster(data=data)
+    else:
+        lobster = Lobster(data=data)
 
     df = pd.concat([lobster.messages, lobster.book], axis=1)
     C.info()
