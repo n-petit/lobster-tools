@@ -3,8 +3,8 @@
 # %% auto 0
 __all__ = ['cfg', 'CONTEXT_SETTINGS', 'O', 'C', 'ArcticLibraryInfo', 'get_library_info', 'Options', 'ConsoleNotify',
            'apply_options', 'ClickCtxObj', 'ClickCtx', 'etf', 'pfmt', 'arctic', 'echo', 'init', 'create', 'ls',
-           'libraries', 'symbols', 'versions', 'dates', 'rm', 'library', 'query', 'filter', 'finfo', 'attach',
-           'single_write', 'mp_single_write', 'multi_write']
+           'libraries', 'symbols', 'versions', 'dates', 'rm', 'library', 'query', 'filter', 'finfo', 'attach', 'diff',
+           'single_write', 'multi_write']
 
 # %% ../notebooks/07_arctic.ipynb 4
 import os
@@ -33,12 +33,10 @@ from lobster_tools.config import (
     register_configs,
     get_config,
 )
-from .preprocessing import Data, Lobster, MPLobster, Event, infer_ticker_to_date_range, infer_ticker_to_ticker_path, infer_ticker_dict, EhMPLobster
+from .preprocessing import Data, Lobster, MPLobster, Event, infer_ticker_dict
 import sys
 import pandas as pd
 import numpy as np
-import logging
-from logging import Logger
 from datetime import date
 from typing import Callable, TypedDict, Protocol, NotRequired, Required, cast
 from dataclasses import dataclass, asdict
@@ -54,13 +52,6 @@ register_configs()
 cfg = get_config(overrides=Overrides.full_server)
 
 # %% ../notebooks/07_arctic.ipynb 7
-CONTEXT_SETTINGS = dict(
-    help_option_names=["-h", "--help"],
-    token_normalize_func=lambda x: x.lower() if isinstance(x, str) else x,
-    show_default=True,
-)
-
-# %% ../notebooks/07_arctic.ipynb 10
 @dataclass
 class ArcticLibraryInfo:
     ticker: str
@@ -72,7 +63,7 @@ class ArcticLibraryInfo:
         self.start_date = min(self.dates_ndarray)
         self.end_date = max(self.dates_ndarray)
 
-# %% ../notebooks/07_arctic.ipynb 11
+# %% ../notebooks/07_arctic.ipynb 8
 CONTEXT_SETTINGS = dict(
     help_option_names=["-h", "--help"],
     token_normalize_func=lambda x: x.lower() if isinstance(x, str) else x,
@@ -80,16 +71,7 @@ CONTEXT_SETTINGS = dict(
     auto_envvar_prefix="ARCTIC"
 )
 
-# %% ../notebooks/07_arctic.ipynb 12
-def _single_write_within_multi_write(arctic_library, data):
-    lobster = Lobster(data=data)
-    df = pd.concat([lobster.messages, lobster.book], axis=1)
-    print(df.head())
-
-    arctic_library.write(symbol=data.ticker, data=df)
-    print(f"finished writing ticker {data.ticker}")
-
-# %% ../notebooks/07_arctic.ipynb 13
+# %% ../notebooks/07_arctic.ipynb 9
 def get_library_info(
     arctic_library: Library,  # arcticdb library
     tickers: list[str] | None = None,  # tickers to filter on
@@ -149,7 +131,7 @@ class Options:
         self.zip_path = click.option(
             "-z",
             "--zip_path",
-            default="/nfs/lobster_data/lobster_raw/2016",
+            default="/nfs/lobster_data/lobster_raw/2021",
             help="zip files path",
         )
         self.tickers = click.option(
@@ -446,7 +428,7 @@ def finfo(files_path):
 @click.option(
     "-z",
     "--zip_path",
-    default="/nfs/lobster_data/lobster_raw/2016",
+    default="/nfs/lobster_data/lobster_raw/2021",
     envvar="ZIP_PATH",
     help="zip files path",
 )
@@ -467,48 +449,28 @@ def attach(ctx, start_date, end_date, csv_path, zip_path):
 
         click.echo(json.dumps(obj))
 
-
 @arctic.command()
 @click.pass_context
 @click.option(
-    "-c",
-    "--csv_path",
-    default=cfg.data_config.csv_files_path,
-    help="csv files path",
-)
-@click.option(
-    "--ticker",
-    required=True,
-)
-@click.option("--date_range", nargs=2, type=str)
-def single_write(
-    ctx,
-    csv_path,
-    ticker,
-    date_range,
+            "-z",
+            "--zip_path",
+            default="/nfs/lobster_data/lobster_raw/2021",
+            help="zip files path",
+        )
+def diff(
+    ctx: ClickCtx,
+    zip_path: str,
 ):
-    """Single threaded write to database for a single ticker."""
-    try:
-        arctic_library = ctx.obj["arctic_library"]
-    except KeyError:
-        raise LibraryNotFound
+    "Tickers still to be written to database."
+    arctic_library = ctx.obj["arctic_library"]
 
-    data = Data(
-        directory_path=csv_path,
-        ticker=ticker,
-        date_range=date_range,
-        aggregate_duplicates=False,
-    )
+    csv_info = infer_ticker_dict(zip_path)
+    csv_tickers = [x.ticker for x in csv_info]
 
-    lobster = Lobster(data=data)
-    df = pd.concat([lobster.messages, lobster.book], axis=1)
-    C.info()
-    print(f"head of ticker {ticker}")
-    print(df.head())
+    arctic_tickers = arctic_library.list_symbols()
 
-    arctic_library.write(symbol=ticker, data=df)
-
-    C.sucess()
+    tickers_difference = set(csv_tickers).difference(arctic_tickers)
+    click.echo(tickers_difference)
 
 
 @arctic.command()
@@ -533,13 +495,13 @@ def single_write(
     default=True,
     help="Use multiprocessing to load data.",
 )
-def mp_single_write(
-    ctx,
-    csv_path,
-    ticker,
-    date_range,
-    update,
-    mp,
+def single_write(
+    ctx: ClickCtx,
+    csv_path: str,
+    ticker: str,
+    date_range: tuple,
+    update: bool,
+    mp: bool,
 ):
     """Write single ticker to database."""
     try:
@@ -555,6 +517,7 @@ def mp_single_write(
         aggregate_duplicates=False,
     )
     click.echo(data)
+
     if mp:
         lobster = MPLobster(data=data)
     else:
