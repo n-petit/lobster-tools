@@ -341,7 +341,7 @@ class HyperparametersConfig:
 class SimpleHyperparametersConfig(HyperparametersConfig):
     tolerances: list[str] = field(default_factory=lambda: ["125us", "500us"])
     resample_freq: str = "5min"
-    markouts: list[str] = field(default_factory=lambda: ["30S", "min"])
+    markouts: list[str] = field(default_factory=lambda: ["30S", "1min"])
 
 
 @dataclass
