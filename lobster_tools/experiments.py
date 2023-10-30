@@ -2,8 +2,7 @@
 
 # %% auto 0
 __all__ = ['cfg', 'directory_path', 'etfs', 'equities', 'date_range', 'markouts', 'finest_resample', 'max_markout', 'load',
-           'clip_trading_hours', 'add_ticker_column', 'CONTEXT_SETTINGS', 'example_feature', 'example_cli', 'testa',
-           'print_hello', 'testaa', 'hydra_cli']
+           'clip_trading_hours', 'add_ticker_column', 'example_cli', 'hydra_cli']
 
 # %% ../notebooks/05_experiments.ipynb 4
 import click
@@ -34,20 +33,6 @@ clip_trading_hours = True
 add_ticker_column = True
 
 # %% ../notebooks/05_experiments.ipynb 8
-CONTEXT_SETTINGS = dict(
-    help_option_names=["-h", "--help"],
-    token_normalize_func=lambda x: x.lower()
-    if isinstance(x, str)
-    else x,  # can run with --COUNT or --count, --duck or --dUcK etc..
-)
-
-@click.command(context_settings=CONTEXT_SETTINGS)
-@click.option("-c", "--count", required=True, help="example arg.")
-def example_feature(count):
-    "nbdev cli test"
-    print(f"{count} example feature")
-
-# %% ../notebooks/05_experiments.ipynb 9
 def example_cli():
     register_configs()
     with initialize(version_base=None, config_path=None):
@@ -55,61 +40,10 @@ def example_cli():
         cfg: MainConfig = OmegaConf.to_object(compose(config_name="config"))
     print(cfg)
 
-# %% ../notebooks/05_experiments.ipynb 10
-# simple test of click and setuptools console_scripts entry points.. works nicely for simple CLIs
-CONTEXT_SETTINGS = dict(
-    help_option_names=["-h", "--help"],
-    token_normalize_func=lambda x: x.lower()
-    if isinstance(x, str)
-    else x,  # can run with --COUNT or --count, --duck or --dUcK etc..
-)
-
-
-@click.command(context_settings=CONTEXT_SETTINGS)
-@click.option("-c", "--count", required=True, help="example arg.")
-@click.option("-i", "--int", "int_", default=2, show_default=True, help="example arg.")
-@click.option("-d", "--duck", is_flag=True, show_default=True, help="some flag.")
-@click.option(
-    "-e", "--elephant", is_flag=True, show_default=True, default=True, help="some flag."
-)
-def testa(count, duck, elephant, int_):
-    "nbdev cli test with click"
-    print(
-        f"printing the arg count: {count}. duck: {duck}. elephant: {elephant}. reserved keyword int: {int_}"
-    )
-
-# %% ../notebooks/05_experiments.ipynb 11
-def print_hello():
-    "nbdev cli test"
-    print("hello")
-
-# %% ../notebooks/05_experiments.ipynb 12
-CONTEXT_SETTINGS = dict(
-    help_option_names=["-h", "--help"],
-    token_normalize_func=lambda x: x.lower()
-    if isinstance(x, str)
-    else x,  # can run with --COUNT or --count, --duck or --dUcK etc..
-)
-
-
-@click.command(context_settings=CONTEXT_SETTINGS)
-@click.option("-c", "--count", required=True, help="example arg.")
-def testaa(count):
-    "nbdev cli test"
-    print(f"{count} testaa")
-
-# %% ../notebooks/05_experiments.ipynb 13
+# %% ../notebooks/05_experiments.ipynb 9
 # register_configs()
 @hydra.main(version_base=None, config_name="config")
 def hydra_cli(cfg: MainConfig) -> None:
     """I would have more specific name here. For example this file might be called create_arctic_dc.py and the main()
     function would be called create_arctic_db() or sth"""
     print(OmegaConf.to_yaml(cfg))
-
-# %% ../notebooks/05_experiments.ipynb 14
-# register_configs()
-# @hydra.main(version_base=None, config_name="config")
-# def example_main(cfg: MainConfig) -> None:
-#     """I would have more specific name here. For example this file might be called create_arctic_dc.py and the main()
-#     function would be called create_arctic_db() or sth"""
-#     print(OmegaConf.to_yaml(cfg))
