@@ -5,13 +5,14 @@ __all__ = ['tolerances', 'resample_freq', 'equities', 'etfs', 'date_range', 'str
            'all_index', 'empty_series', 'aggregate_before_after', 'aggregate_same_sign_opposite_sign', 'get_times',
            'str_to_time', 'add_neighbors', 'drop_all_neighbor_cols', 'col_to_dtype_inputing_mapping',
            'multi_index_to_single_index', 'groupby_index_to_series', 'compute_features', 'append_features',
-           'count_non_null', 'marginalise', 'add_arb_tag', 'drop_features', 'split_isolated_non_isolated', 'old_ofi',
-           'ofis', 'not_ofi', 'old_compute_ofi', 'resample_mid', 'restrict_common_index', 'markout_returns',
-           'clip_df_times', 'clip_for_markout']
+           'count_non_null', 'old_marginalise', 'build_regex_query', 'generate_all_groups', 'marginalise',
+           'add_arb_tag', 'drop_features', 'split_isolated_non_isolated', 'old_ofi', 'ofis', 'not_ofi',
+           'old_compute_ofi', 'resample_mid', 'restrict_common_index', 'markout_returns', 'clip_df_times',
+           'clip_for_markout']
 
 # %% ../notebooks/04_flow_decomposition.ipynb 4
 from functools import partial
-from itertools import product
+import itertools as it
 from typing import Literal, Optional, get_args
 
 import numpy as np
@@ -54,9 +55,8 @@ def add_neighbors(
     tolerances: list[str],
 ):
     """Annotate the etf execution dataframe with the indices of the neighbouring equity executions.
-    Note: Building the KDTree on the equity dataframe.
+    Note: Building the KDTree on the equity dataframe. Blah
     """
-    # new addition so it's not inplace
     etf_executions = etf_executions.copy()
 
     etf_executions_times = get_times(etf_executions)
@@ -65,18 +65,12 @@ def add_neighbors(
 
     def _add_neighbors_col(etf_executions, tolerance_str):
         tolerance_in_nanoseconds = str_to_nanoseconds(tolerance_str)
-        etf_executions[f"_{tolerance_str}_neighbors"] = equity_tree.query_radius(etf_executions_times, r=tolerance_in_nanoseconds)
-        etf_executions[f"_{tolerance_str}_neighbors"] = etf_executions[f"_{tolerance_str}_neighbors"].apply(
-            lambda x: None if x.size == 0 else x
+        etf_executions[f"_{tolerance_str}_neighbors"] = equity_tree.query_radius(
+            etf_executions_times, r=tolerance_in_nanoseconds
         )
-
-        # np_neighbors = equity_tree.query_radius(etf_executions_times, r=tolerance_in_nanoseconds)
-        # mask = np.zeros(len(np_neighbors), dtype=bool) # is this necessary?
-        # mask = np.array([x.size == 0] for x in np_neighbors)
-        # np_neighbors[mask] = None
-        # etf_executions[f"_{tolerance_str}_neighbors"] = np_neighbors
-
-        # could potentially do ufunc also
+        etf_executions[f"_{tolerance_str}_non-iso"] = etf_executions[
+            f"_{tolerance_str}_neighbors"
+        ].apply(lambda x: x.size > 0)
 
     for tolerance in tolerances:
         _add_neighbors_col(etf_executions, tolerance)
@@ -88,7 +82,6 @@ def drop_all_neighbor_cols(df: pd.DataFrame):
     "Drop neighbor columns inplace."
     neighbor_column_names = df.filter(regex="neighbors").columns
     df.drop(columns=neighbor_column_names, inplace=True)
-
 
 # %% ../notebooks/04_flow_decomposition.ipynb 8
 def col_to_dtype_inputing_mapping(col, col_to_dtype_dict):
@@ -108,7 +101,7 @@ col_to_dtype = partial(
 
 # %% ../notebooks/04_flow_decomposition.ipynb 9
 features = ["distinct_tickers", "notional", "num_trades"]
-all_index = ["_".join(t) for t in product(features, ["ss", "os"], ["bf", "af"])]
+all_index = ["_".join(t) for t in it.product(features, ["ss", "os"], ["bf", "af"])]
 
 empty_series = pd.Series(index=all_index, dtype="Sparse[float]").fillna(0)
 empty_series = pd.Series(index=all_index, dtype="float").fillna(0)
@@ -215,7 +208,7 @@ def count_non_null(df, tolerance):
     return df[f"_{tolerance}_neighbors"].notnull().sum()
 
 # %% ../notebooks/04_flow_decomposition.ipynb 12
-def marginalise(df: pd.DataFrame, 
+def old_marginalise(df: pd.DataFrame, 
                 over: Literal["same_sign/opposite_sign", "before/after"], # which feature to marginalise over 
                 drop=False # drop or keep columns that were marginalised over
                 ) -> pd.DataFrame:
@@ -246,10 +239,68 @@ def marginalise(df: pd.DataFrame,
     return df
 
 # %% ../notebooks/04_flow_decomposition.ipynb 13
+def build_regex_query(terms: list[str]) -> str:
+    """Build regex query for contains all terms.
+
+    Example:
+    >>> build_regex_query(['500us', 'os'])
+    '(?=.*500us)(?=.*os)'
+    """
+    return "".join(f"(?=.*{term})" for term in terms)
+
+
+def generate_all_groups(tolerances, features = ['notional', 'distinct_tickers', 'num_trades'], splits = ['ss', 'os', 'bf', 'af']):
+    group_by_3 = it.product(tolerances, features, splits)
+    group_by_2 = it.product(tolerances, features)
+    # temp
+    # return group_by_2
+    return list(group_by_3) + list(group_by_2)
+
+
+def marginalise(
+    df: pd.DataFrame,
+    groups: list[tuple],
+    inplace: bool = False,
+) -> pd.DataFrame:
+    """NOTE: does not work.
+    
+    Marginalise over all features by summing columns together.
+
+    groups accepts a list of tuples of strings i.e
+    [('500us', 'distinct_tickers', 'ss'),
+    ('500us', 'distinct_tickers', 'os'),
+    ('500us', 'distinct_tickers', 'bf'),
+    ('500us', 'distinct_tickers', 'af'),
+    ('500us', 'notional', 'ss'),
+    ('500us', 'notional', 'os'),
+    ('500us', 'notional', 'bf'),
+    ('500us', 'notional', 'af'),
+    ('250us', 'distinct_tickers', 'ss'),
+    ('250us', 'distinct_tickers', 'os'),
+    ('250us', 'distinct_tickers', 'bf'),
+    ('250us', 'distinct_tickers', 'af'),
+    ('250us', 'notional', 'ss'),
+    ('250us', 'notional', 'os'),
+    ('250us', 'notional', 'bf'),
+    ('250us', 'notional', 'af')]
+    """
+
+    if not inplace:
+        df = df.copy()
+
+    for terms in groups:
+        regex = build_regex_query(terms=terms)
+        col_name = "_" + "_".join(terms)
+        df[col_name] = df.filter(regex=regex).sum(axis=1)
+
+    if not inplace:
+        return df
+
+# %% ../notebooks/04_flow_decomposition.ipynb 14
 aggregate_before_after = partial(marginalise, over="before/after", drop=False)
 aggregate_same_sign_opposite_sign = partial(marginalise, over="same_sign/opposite_sign", drop=False)
 
-# %% ../notebooks/04_flow_decomposition.ipynb 14
+# %% ../notebooks/04_flow_decomposition.ipynb 15
 def add_arb_tag(df: pd.DataFrame, tag_functions: list[str]) -> None:
     """Add arb tags using a list of str eval expressions."""
     for tag_function in tag_functions:
@@ -268,7 +319,7 @@ def add_arb_tag(df: pd.DataFrame, tag_functions: list[str]) -> None:
 #     f"_{tolerance}_arb_tag = _{tolerance}_notional_os > 0" for tolerance in tolerances
 # ]
 
-# %% ../notebooks/04_flow_decomposition.ipynb 15
+# %% ../notebooks/04_flow_decomposition.ipynb 16
 def drop_features(df: pd.DataFrame) -> None:
     """Drops all intermediate features, and just leaves the arbitrage tags.
     Not the nicest way. Could do better regex."""
@@ -278,14 +329,14 @@ def drop_features(df: pd.DataFrame) -> None:
     df.drop(columns=features, inplace=True)
     return None
 
-# %% ../notebooks/04_flow_decomposition.ipynb 16
+# %% ../notebooks/04_flow_decomposition.ipynb 17
 def split_isolated_non_isolated(etf_executions: pd.DataFrame, tolerance) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Returns a tuple of (isolated, non_isolated). For now, use deep copy, although this may not be great."""
     tolerance_str = f"_{tolerance}_neighbors"
     isolated_indices = etf_executions[tolerance_str].isna()
     return etf_executions[isolated_indices].copy(deep=True), etf_executions[~isolated_indices].copy(deep=True)
 
-# %% ../notebooks/04_flow_decomposition.ipynb 17
+# %% ../notebooks/04_flow_decomposition.ipynb 18
 def old_ofi(df: pd.DataFrame, resample_freq: str = "5T", suffix: str | None = None) -> pd.DataFrame:
     suffix = "" if suffix is None else ("_" + suffix)
     
@@ -307,7 +358,7 @@ def old_ofi(df: pd.DataFrame, resample_freq: str = "5T", suffix: str | None = No
     ofi_df = pd.concat(ofi_series, axis=1)
     return ofi_df
 
-# %% ../notebooks/04_flow_decomposition.ipynb 18
+# %% ../notebooks/04_flow_decomposition.ipynb 19
 def ofis(df: pd.DataFrame, # dataframe that contains only one etf (i.e has already been queried for one etf)
         resample_freq: str = "5T", suffix: str | None = None) -> pd.DataFrame:
     """DIFF Function"""
@@ -333,7 +384,7 @@ def ofis(df: pd.DataFrame, # dataframe that contains only one etf (i.e has alrea
     ofi_df = pd.concat(ofi_series, axis=1)
     return ofi_df
 
-# %% ../notebooks/04_flow_decomposition.ipynb 19
+# %% ../notebooks/04_flow_decomposition.ipynb 20
 def not_ofi(df: pd.DataFrame, resample_freq: str = "5T", suffix: str | None = None) -> pd.DataFrame:
     """Quick modification where I don't normalize by size."""
     suffix = "" if suffix is None else ("_" + suffix)
@@ -356,7 +407,7 @@ def not_ofi(df: pd.DataFrame, resample_freq: str = "5T", suffix: str | None = No
     ofi_df = pd.concat(ofi_series, axis=1)
     return ofi_df
 
-# %% ../notebooks/04_flow_decomposition.ipynb 20
+# %% ../notebooks/04_flow_decomposition.ipynb 21
 # TODO: extend function / create another functino to loop over sampling freq
 # TODO: etfs is a global variable in this function. compute it within the function or pass it as an argument
 
@@ -396,7 +447,7 @@ def old_compute_ofi(
 
 
 
-# %% ../notebooks/04_flow_decomposition.ipynb 24
+# %% ../notebooks/04_flow_decomposition.ipynb 25
 def resample_mid(df: pd.DataFrame, resample_freq="5T"):
     return df.resample(resample_freq, label="right").last().eval("mid = bid_price_1 + (ask_price_1 - bid_price_1) / 2")["mid"]
 
