@@ -9,7 +9,7 @@ from functools import partial
 
 import pandas as pd
 
-from .preprocessing import Direction, Event, EventGroup, load_lobster
+from .preprocessing import Direction, Event, EventGroup
 
 # %% ../notebooks/02_querying.ipynb 5
 def query_by_direction(
