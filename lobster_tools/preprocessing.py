@@ -145,9 +145,12 @@ class Data:
             self.date_range = (min(self.dates), max(self.dates))
 
         elif isinstance(self.date_range, str):
-            self.dates, self.date_range = [self.date_range], (
-                self.date_range,
-                self.date_range,
+            self.dates, self.date_range = (
+                [self.date_range],
+                (
+                    self.date_range,
+                    self.date_range,
+                ),
             )
 
         # messages and book filepath dictionaries
@@ -216,6 +219,7 @@ _clip_to_trading_hours = partial(
 @dataclass
 class Lobster:
     "Lobster data class for a single symbol of Lobster data."
+
     data: Data | None = None
 
     def process_messages(self, date, filepath):
@@ -431,6 +435,7 @@ class Lobster:
 # | code-fold: true
 class MPLobster:
     "Lobster data class for a single symbol of Lobster data."
+
     MAX_WORKERS: int = 70
 
     @staticmethod
