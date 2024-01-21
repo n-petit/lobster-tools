@@ -41,6 +41,7 @@ class Event(enum.Enum):
 @enum.unique
 class EventGroup(enum.Enum):
     """Note that the `EXECUTIONS` group does not contain `Event.CROSS_TRADE`."""
+
     EXECUTIONS = [
         Event.EXECUTION.value,
         Event.HIDDEN_EXECUTION.value,
@@ -92,7 +93,9 @@ class Data:
         # ticker path
         tickers = glob.glob(f"{self.directory_path}/*")
         # ticker_path = [t for t in tickers if self.ticker in t]
-        ticker_path = [t for t in tickers if os.path.basename(t).startswith(f"{self.ticker}_")]
+        ticker_path = [
+            t for t in tickers if os.path.basename(t).startswith(f"{self.ticker}_")
+        ]
 
         if len(ticker_path) != 1:
             raise ValueError(f"Expected exactly 1 directory with name {self.ticker}")
@@ -110,9 +113,13 @@ class Data:
 
         # infer date range from ticker folder name
         if not self.date_range:
-            self.date_range = tuple(re.findall(pattern=r"\d\d\d\d-\d\d-\d\d", string=self.ticker_path))
+            self.date_range = tuple(
+                re.findall(pattern=r"\d\d\d\d-\d\d-\d\d", string=self.ticker_path)
+            )
             if len(self.date_range) != 2:
-                raise ValueError(f"Expected exactly 2 dates in regex match of in {self.ticker_path}")
+                raise ValueError(
+                    f"Expected exactly 2 dates in regex match of in {self.ticker_path}"
+                )
 
         # book and message paths
         tickers = glob.glob(f"{self.ticker_path}/*")
@@ -120,7 +127,10 @@ class Data:
 
         if isinstance(self.date_range, tuple):
             # get all dates in folder
-            dates = {re.findall(pattern=r"\d\d\d\d-\d\d-\d\d", string=file)[0] for file in tickers_end}
+            dates = {
+                re.findall(pattern=r"\d\d\d\d-\d\d-\d\d", string=file)[0]
+                for file in tickers_end
+            }
             # filter for dates within specified range
             dates = sorted(
                 list(
@@ -145,10 +155,14 @@ class Data:
             filter_keyword_tickers = list(filter(lambda x: keyword in x, tickers_end))
             date_path_dict = {}
             for date in self.dates:
-                filter_date_tickers = list(filter(lambda x: date in x, filter_keyword_tickers))
+                filter_date_tickers = list(
+                    filter(lambda x: date in x, filter_keyword_tickers)
+                )
                 if len(filter_date_tickers) != 1:
                     raise ValueError(f"Expected exactly 1 match for {date}")
-                date_path_dict[date] = os.path.join(self.ticker_path, filter_date_tickers[0])
+                date_path_dict[date] = os.path.join(
+                    self.ticker_path, filter_date_tickers[0]
+                )
             return date_path_dict
 
         self.book_paths = _create_date_to_path_dict("book")
@@ -166,13 +180,19 @@ def _aggregate_duplicates(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df.reset_index(inplace=True)
     duplicates = df.duplicated(subset=df.columns.difference(["size"]), keep=False)
-    df.loc[duplicates, "size"] = df.loc[duplicates, "size"].groupby(df.loc[duplicates].datetime).transform("sum")
+    df.loc[duplicates, "size"] = (
+        df.loc[duplicates, "size"].groupby(df.loc[duplicates].datetime).transform("sum")
+    )
     df.drop_duplicates(subset=df.columns.difference(["size"]), inplace=True)
     df.set_index("datetime", inplace=True, drop=True)
     return df
 
 # %% ../notebooks/01_preprocessing.ipynb 19
-def clip_times(df: pd.DataFrame, start: datetime.time | None = None, end: datetime.time | None = None) -> pd.DataFrame:
+def clip_times(
+    df: pd.DataFrame,
+    start: datetime.time | None = None,
+    end: datetime.time | None = None,
+) -> pd.DataFrame:
     """Clip a dataframe or lobster object to a time range."""
     if not isinstance(df.index, pd.DatetimeIndex):
         raise TypeError("Expected a dataframe with a datetime index")
@@ -187,7 +207,9 @@ def clip_times(df: pd.DataFrame, start: datetime.time | None = None, end: dateti
         raise ValueError("start and end cannot both be None")
 
 
-_clip_to_trading_hours = partial(clip_times, start=datetime.time(9, 30), end=datetime.time(16, 0))
+_clip_to_trading_hours = partial(
+    clip_times, start=datetime.time(9, 30), end=datetime.time(16, 0)
+)
 
 # %% ../notebooks/01_preprocessing.ipynb 20
 # | code-fold: true
@@ -216,7 +238,9 @@ class Lobster:
 
         # set index as datetime
         # df.rename(columns={'time':'seconds_since_midnight'})
-        df["datetime"] = pd.to_datetime(date, format="%Y-%m-%d") + df.time.apply(lambda x: pd.to_timedelta(x, unit="s"))
+        df["datetime"] = pd.to_datetime(date, format="%Y-%m-%d") + df.time.apply(
+            lambda x: pd.to_timedelta(x, unit="s")
+        )
         df.set_index("datetime", drop=True, inplace=True)
         return df
 
@@ -251,13 +275,20 @@ class Lobster:
             #     df.set_index("datetime", drop=True, inplace=True)
             #     dfs.append(df)
             # df = pd.concat(dfs)
-            
+
             # refactor for memory use
-            dfs = (self.process_messages(date=date, filepath=filepath) for date, filepath in self.data.messages_paths.items())
+            dfs = (
+                self.process_messages(date=date, filepath=filepath)
+                for date, filepath in self.data.messages_paths.items()
+            )
             df = pd.concat(dfs)
 
             # direction for cross trades is set to zero, and order_id is left unchanged
-            if not df.loc[df.event.eq(Event.CROSS_TRADE.value), "direction"].eq(-1).all():
+            if (
+                not df.loc[df.event.eq(Event.CROSS_TRADE.value), "direction"]
+                .eq(-1)
+                .all()
+            ):
                 raise ValueError("All cross trades must have direction -1")
             df.loc[df.event.eq(Event.CROSS_TRADE.value), "direction"] = 0
 
@@ -265,7 +296,11 @@ class Lobster:
             # if not df.loc[df.event.eq(Event.CROSS_TRADE.value), "order_id"].eq(-1).all():
             #     raise ValueError("All cross trades must have order_id -1")
 
-            if not df.loc[df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "direction"].eq(-1).all():
+            if (
+                not df.loc[df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "direction"]
+                .eq(-1)
+                .all()
+            ):
                 raise ValueError("All trading halts must have direction -1")
             df.loc[df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "direction"] = 0
 
@@ -278,7 +313,9 @@ class Lobster:
                 }[price]
 
             # doesn't make much difference
-            df.loc[df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "event"] = df.loc[df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "price"].apply(_trading_halt_type)
+            df.loc[df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "event"] = df.loc[
+                df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "price"
+            ].apply(_trading_halt_type)
 
             # implentation of above without apply
             # trading_halt_mask = (df.event == Event.TRADING_HALT.value)
@@ -311,7 +348,9 @@ class Lobster:
                 #     "etf",
                 # ], "ticker_type must be either `equity` or `etf`"
                 df = df.assign(ticker_type=self.data.ticker_type).astype(
-                    dtype={"ticker_type": pd.CategoricalDtype(categories=["equity", "etf"])}
+                    dtype={
+                        "ticker_type": pd.CategoricalDtype(categories=["equity", "etf"])
+                    }
                 )
 
             self.messages = df
@@ -372,11 +411,17 @@ class Lobster:
         return self
 
     # TODO: write decorator to simplify the "both", "messages", "book" logic that is common to a few methods
-    def add_ticker_column(self, to: t.Literal["both", "messages", "book"] = "messages") -> t.Self:
+    def add_ticker_column(
+        self, to: t.Literal["both", "messages", "book"] = "messages"
+    ) -> t.Self:
         if to in ("both", "messages"):
-            self.messages = self.messages.assign(ticker=self.data.ticker).astype({"ticker": "category"})
+            self.messages = self.messages.assign(ticker=self.data.ticker).astype(
+                {"ticker": "category"}
+            )
         if to in ("both", "book"):
-            self.book = self.book.assign(ticker=self.data.ticker).astype({"ticker": "category"})
+            self.book = self.book.assign(ticker=self.data.ticker).astype(
+                {"ticker": "category"}
+            )
         return self
 
     def __repr__(self) -> str:
@@ -409,7 +454,9 @@ class MPLobster:
         )
 
         # set index as datetime
-        df["datetime"] = pd.to_datetime(date, format="%Y-%m-%d") + df.time.apply(lambda x: pd.to_timedelta(x, unit="s"))
+        df["datetime"] = pd.to_datetime(date, format="%Y-%m-%d") + df.time.apply(
+            lambda x: pd.to_timedelta(x, unit="s")
+        )
         df.set_index("datetime", drop=True, inplace=True)
         print(f"finished {date}")
         return df
@@ -417,9 +464,15 @@ class MPLobster:
     @staticmethod
     def process_all_messages(messages_paths, max_workers=70):
         print(max_workers)
-        mp.set_start_method('spawn')
+        mp.set_start_method("spawn")
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
-            dfs = list(executor.map(MPLobster.process_messages, messages_paths.keys(), messages_paths.values()))
+            dfs = list(
+                executor.map(
+                    MPLobster.process_messages,
+                    messages_paths.keys(),
+                    messages_paths.values(),
+                )
+            )
             # dfs = (self.process_messages(date=date, filepath=filepath) for date, filepath in self.data.messages_paths.items())
         df = pd.concat(dfs)
         del dfs
@@ -430,7 +483,11 @@ class MPLobster:
             raise ValueError("All cross trades must have direction -1")
         df.loc[df.event.eq(Event.CROSS_TRADE.value), "direction"] = 0
 
-        if not df.loc[df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "direction"].eq(-1).all():
+        if (
+            not df.loc[df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "direction"]
+            .eq(-1)
+            .all()
+        ):
             raise ValueError("All trading halts must have direction -1")
         df.loc[df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "direction"] = 0
 
@@ -442,7 +499,9 @@ class MPLobster:
                 1: Event.TRADING_RESUME.value,
             }[price]
 
-        df.loc[df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "event"] = df.loc[df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "price"].apply(_trading_halt_type)
+        df.loc[df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "event"] = df.loc[
+            df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "price"
+        ].apply(_trading_halt_type)
 
         # use 0 as NaN for size and direction
         df.loc[
@@ -479,7 +538,7 @@ class MPLobster:
     def process_all_books(book_paths: dict, max_workers=70):
         # check if set
         if mp.get_start_method(allow_none=True) is None:
-            mp.set_start_method('spawn')
+            mp.set_start_method("spawn")
         print(max_workers)
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
             dfs = list(executor.map(MPLobster.process_books, book_paths.values()))
@@ -497,7 +556,9 @@ class MPLobster:
         self.data = data
 
         if self.data.load_messages:
-            self.messages = MPLobster.process_all_messages(messages_paths=self.data.messages_paths)
+            self.messages = MPLobster.process_all_messages(
+                messages_paths=self.data.messages_paths
+            )
             gc.collect()
 
         if self.data.load_book:
@@ -527,11 +588,17 @@ class MPLobster:
         return self
 
     # TODO: write decorator to simplify the "both", "messages", "book" logic that is common to a few methods
-    def add_ticker_column(self, to: t.Literal["both", "messages", "book"] = "messages") -> t.Self:
+    def add_ticker_column(
+        self, to: t.Literal["both", "messages", "book"] = "messages"
+    ) -> t.Self:
         if to in ("both", "messages"):
-            self.messages = self.messages.assign(ticker=self.data.ticker).astype({"ticker": "category"})
+            self.messages = self.messages.assign(ticker=self.data.ticker).astype(
+                {"ticker": "category"}
+            )
         if to in ("both", "book"):
-            self.book = self.book.assign(ticker=self.data.ticker).astype({"ticker": "category"})
+            self.book = self.book.assign(ticker=self.data.ticker).astype(
+                {"ticker": "category"}
+            )
         return self
 
     def __repr__(self) -> str:
@@ -545,7 +612,7 @@ class FolderInfo:
     ticker_till_end: str
     start_date: str
     end_date: str
-    date_range: tuple[str,str] = field(init=False)
+    date_range: tuple[str, str] = field(init=False)
 
     def __post_init__(self):
         self.date_range = (self.start_date, self.end_date)
@@ -566,7 +633,7 @@ def infer_ticker_dict(
         FolderInfo(
             full=match.group(0),
             ticker=match.group(3),
-            ticker_till_end=match.group(2).rstrip('.7z'),
+            ticker_till_end=match.group(2).rstrip(".7z"),
             start_date=match.group(4),
             end_date=match.group(5),
         )
