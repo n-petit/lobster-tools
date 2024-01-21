@@ -3,19 +3,24 @@
 # %% auto 0
 __all__ = ['quick_marginalize', 'marginalize']
 
-# %% ../notebooks/08_etf_pipeline2_s3.ipynb 29
+# %% ../notebooks/08_etf_pipeline2_s3.ipynb 26
 def quick_marginalize(df: pd.DataFrame) -> pd.DataFrame:
     """Manual implementation but for all features."""
     df = df.copy()
     # NOTE: tmp hardcoded feature names, change this to a regexp
     # will just grab these from globals and not set in function.
-    tolerances = ['250us', '500us']
-    features = ['num_trades', 'notional', 'distinct_tickers']
+    tolerances = ["250us", "500us"]
+    features = ["num_trades", "notional", "distinct_tickers"]
     col_names = ["_" + "_".join(x) for x in it.product(tolerances, features)]
 
     for col_name in col_names:
         # marginalise over all
-        df[col_name] = df[col_name + "_ss_af"] + df[col_name + "_ss_bf"] + df[col_name + "_os_af"] + df[col_name + "_os_bf"]
+        df[col_name] = (
+            df[col_name + "_ss_af"]
+            + df[col_name + "_ss_bf"]
+            + df[col_name + "_os_af"]
+            + df[col_name + "_os_bf"]
+        )
         # marginalise over bf/af
         df[col_name + "_ss"] = df[col_name + "_ss_af"] + df[col_name + "_ss_bf"]
         df[col_name + "_os"] = df[col_name + "_os_af"] + df[col_name + "_os_bf"]
@@ -25,11 +30,16 @@ def quick_marginalize(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-# %% ../notebooks/08_etf_pipeline2_s3.ipynb 30
+# %% ../notebooks/08_etf_pipeline2_s3.ipynb 27
 def marginalize(df: pd.DataFrame) -> pd.DataFrame:
     """Quick implentation just for one feature. Just for _500us!"""
     # TODO think whether inplace is better
     df = df.copy()
-    df["_500us_num_trades"] = df._500us_num_trades_os_af + df._500us_num_trades_os_bf + df._500us_num_trades_ss_af + df._500us_num_trades_ss_bf
+    df["_500us_num_trades"] = (
+        df._500us_num_trades_os_af
+        + df._500us_num_trades_os_bf
+        + df._500us_num_trades_ss_af
+        + df._500us_num_trades_ss_bf
+    )
     # same for others...
     return df
