@@ -159,5 +159,12 @@ private
 # outputs folder
 outputs
 
+# features folder
+features
+
 # ignore scripts folder for now
 scripts
+
+# ignore GNU parallel arctic setups
+arctic_*.txt
+*_commands.txt
