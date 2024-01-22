@@ -316,7 +316,6 @@ class Lobster:
                     1: Event.TRADING_RESUME.value,
                 }[price]
 
-            # doesn't make much difference
             df.loc[df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "event"] = df.loc[
                 df.event.eq(Event.ORIGINAL_TRADING_HALT.value), "price"
             ].apply(_trading_halt_type)

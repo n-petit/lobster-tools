@@ -2,9 +2,8 @@
 
 # %% auto 0
 __all__ = ['cfg', 'CONTEXT_SETTINGS', 'O', 'C', 'ArcticLibraryInfo', 'get_library_info', 'Options', 'ConsoleNotify',
-           'apply_options', 'ClickCtxObj', 'ClickCtx', 'etf', 'pfmt', 'arctic', 'echo', 'create', 'ls', 'libraries',
-           'symbols', 'versions', 'dates', 'rm', 'library', 'query', 'filter', 'finfo', 'attach', 'diff',
-           'single_write']
+           'ClickCtxObj', 'ClickCtx', 'etf', 'pfmt', 'arctic', 'echo', 'create', 'ls', 'libraries', 'symbols',
+           'versions', 'dates', 'rm', 'library', 'query', 'filter', 'finfo', 'attach', 'diff', 'single_write']
 
 # %% ../notebooks/05_arctic_cli.ipynb 4
 import json
@@ -91,7 +90,7 @@ def get_library_info(
         )
     return arctic_library_infos
 
-
+# %% ../notebooks/05_arctic_cli.ipynb 9
 class Options:
     def __init__(self) -> None:
         self.db_path = click.option(
@@ -145,15 +144,6 @@ class ConsoleNotify:
 
 
 C = ConsoleNotify()
-
-
-def apply_options(options: list):
-    def decorator(f):
-        for option in reversed(options):
-            f = option(f)
-        return f
-
-    return decorator
 
 
 class ClickCtxObj(t.TypedDict):

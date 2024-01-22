@@ -3,7 +3,7 @@
 # %% auto 0
 __all__ = ['quick_marginalize', 'marginalize']
 
-# %% ../notebooks/06_etf_pipeline_s3.ipynb 26
+# %% ../notebooks/06_etf_pipeline_s3.ipynb 27
 def quick_marginalize(df: pd.DataFrame) -> pd.DataFrame:
     """Manual implementation but for all features."""
     df = df.copy()
@@ -30,7 +30,7 @@ def quick_marginalize(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-# %% ../notebooks/06_etf_pipeline_s3.ipynb 27
+# %% ../notebooks/06_etf_pipeline_s3.ipynb 28
 def marginalize(df: pd.DataFrame) -> pd.DataFrame:
     """Quick implentation just for one feature. Just for _500us!"""
     # TODO think whether inplace is better
