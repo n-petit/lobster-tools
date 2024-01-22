@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="ArcticDB CLI tool.">
+
+<title>lobster-tools - ArcticDB CLI</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="lobster-tools - ArcticDB CLI">
+<meta property="og:description" content="ArcticDB CLI tool.">
+<meta property="og:site-name" content="lobster-tools">
+<meta name="twitter:title" content="lobster-tools - ArcticDB CLI">
+<meta name="twitter:description" content="ArcticDB CLI tool.">
+<meta name="twitter:card" content="summary">
+</head>
+
+<body class="nav-sidebar floating nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">lobster-tools</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link active" href="./index.html" rel="" target="" aria-current="page">
+ <span class="menu-text">Get Started</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-help" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">Help</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-help">    
+        <li>
+    <a class="dropdown-item" href="https://lobsterdata.com/" rel="" target=""><i class="bi bi-database-fill" role="img">
+</i> 
+ <span class="dropdown-text">Access Lobster Data</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://github.com/n-petit/lobster-tools/issues" rel="" target=""><i class="bi bi-bug" role="img">
+</i> 
+ <span class="dropdown-text">Report an Issue</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/n-petit/lobster-tools" rel="" target=""><i class="bi bi-github" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar,#quarto-sidebar-glass" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+      <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./arctic_cli.html">ArcticDB CLI</a></li></ol></nav>
+      <a class="flex-grow-1" role="button" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar,#quarto-sidebar-glass" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+      </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal sidebar-navigation floating overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Getting started</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./config.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Config</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./preprocessing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Preprocessing</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./flow_decomposition.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ETF flow decomposition</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./data_downloading.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Data downloading</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./arctic_cli.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">ArcticDB CLI</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./etf_pipeline_s3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ETF Pipeline2 using s3</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar,#quarto-sidebar-glass"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#arcticlibraryinfo" id="toc-arcticlibraryinfo" class="nav-link active" data-scroll-target="#arcticlibraryinfo">ArcticLibraryInfo</a></li>
+  <li><a href="#get_library_info" id="toc-get_library_info" class="nav-link" data-scroll-target="#get_library_info">get_library_info</a></li>
+  <li><a href="#section" id="toc-section" class="nav-link" data-scroll-target="#section"><command single-write=""></command></a></li>
+  <li><a href="#section-1" id="toc-section-1" class="nav-link" data-scroll-target="#section-1"><command diff=""></command></a></li>
+  <li><a href="#section-2" id="toc-section-2" class="nav-link" data-scroll-target="#section-2"><command attach=""></command></a></li>
+  <li><a href="#section-3" id="toc-section-3" class="nav-link" data-scroll-target="#section-3"><command finfo=""></command></a></li>
+  <li><a href="#section-4" id="toc-section-4" class="nav-link" data-scroll-target="#section-4"><command filter=""></command></a></li>
+  <li><a href="#section-5" id="toc-section-5" class="nav-link" data-scroll-target="#section-5"><command query=""></command></a></li>
+  <li><a href="#section-6" id="toc-section-6" class="nav-link" data-scroll-target="#section-6"><command library=""></command></a></li>
+  <li><a href="#section-7" id="toc-section-7" class="nav-link" data-scroll-target="#section-7"><group rm=""></group></a></li>
+  <li><a href="#section-8" id="toc-section-8" class="nav-link" data-scroll-target="#section-8"><command dates=""></command></a></li>
+  <li><a href="#section-9" id="toc-section-9" class="nav-link" data-scroll-target="#section-9"><command versions=""></command></a></li>
+  <li><a href="#section-10" id="toc-section-10" class="nav-link" data-scroll-target="#section-10"><command symbols=""></command></a></li>
+  <li><a href="#section-11" id="toc-section-11" class="nav-link" data-scroll-target="#section-11"><command libraries=""></command></a></li>
+  <li><a href="#section-12" id="toc-section-12" class="nav-link" data-scroll-target="#section-12"><group ls=""></group></a></li>
+  <li><a href="#section-13" id="toc-section-13" class="nav-link" data-scroll-target="#section-13"><command create=""></command></a></li>
+  <li><a href="#section-14" id="toc-section-14" class="nav-link" data-scroll-target="#section-14"><command echo=""></command></a></li>
+  <li><a href="#section-15" id="toc-section-15" class="nav-link" data-scroll-target="#section-15"><group arctic=""></group></a></li>
+  <li><a href="#section-16" id="toc-section-16" class="nav-link" data-scroll-target="#section-16"><command pfmt=""></command></a></li>
+  <li><a href="#section-17" id="toc-section-17" class="nav-link" data-scroll-target="#section-17"><command etf=""></command></a></li>
+  <li><a href="#clickctx" id="toc-clickctx" class="nav-link" data-scroll-target="#clickctx">ClickCtx</a></li>
+  <li><a href="#clickctxobj" id="toc-clickctxobj" class="nav-link" data-scroll-target="#clickctxobj">ClickCtxObj</a></li>
+  <li><a href="#consolenotify" id="toc-consolenotify" class="nav-link" data-scroll-target="#consolenotify">ConsoleNotify</a></li>
+  <li><a href="#options" id="toc-options" class="nav-link" data-scroll-target="#options">Options</a></li>
+  </ul>
+<div class="toc-actions"><div><i class="bi bi-github"></i></div><div class="action-links"><p><a href="https://github.com/n-petit/lobster-tools/issues/new" class="toc-action">Report an issue</a></p></div></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">ArcticDB CLI</h1>
+</div>
+
+<div>
+  <div class="description">
+    ArcticDB CLI tool.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+</header>
+
+<!-- WARNING: THIS FILE WAS AUTOGENERATED! DO NOT EDIT! -->
+<hr>
+<p><a href="https://github.com/n-petit/lobster-tools/blob/main/lobster_tools/arctic_cli.py#L43" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="arcticlibraryinfo" class="level3">
+<h3 class="anchored" data-anchor-id="arcticlibraryinfo">ArcticLibraryInfo</h3>
+<blockquote class="blockquote">
+<pre><code> ArcticLibraryInfo (ticker:str, dates_ndarray:numpy.ndarray,
+                    dates_series:pandas.core.series.Series)</code></pre>
+</blockquote>
+<hr>
+<p><a href="https://github.com/n-petit/lobster-tools/blob/main/lobster_tools/arctic_cli.py#L62" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="get_library_info" class="level3">
+<h3 class="anchored" data-anchor-id="get_library_info">get_library_info</h3>
+<blockquote class="blockquote">
+<pre><code> get_library_info (arctic_library:arcticdb.version_store.library.Library,
+                   tickers:list[str]|None=None)</code></pre>
+</blockquote>
+<p>Return information about ticker info in database.</p>
+<table class="table">
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>Type</strong></th>
+<th><strong>Default</strong></th>
+<th><strong>Details</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>arctic_library</td>
+<td>Library</td>
+<td></td>
+<td>arcticdb library</td>
+</tr>
+<tr class="even">
+<td>tickers</td>
+<td>list[str] | None</td>
+<td>None</td>
+<td>tickers to filter on</td>
+</tr>
+<tr class="odd">
+<td><strong>Returns</strong></td>
+<td><strong>list</strong></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="section" class="level3">
+<h3 class="anchored" data-anchor-id="section"><command single-write=""></command></h3>
+<blockquote class="blockquote">
+<pre><code> &lt;Command single-write&gt; (*args:Any, **kwargs:Any)</code></pre>
+</blockquote>
+<p>Write single ticker to database.</p>
+<hr>
+</section>
+<section id="section-1" class="level3">
+<h3 class="anchored" data-anchor-id="section-1"><command diff=""></command></h3>
+<blockquote class="blockquote">
+<pre><code> &lt;Command diff&gt; (*args:Any, **kwargs:Any)</code></pre>
+</blockquote>
+<p>Tickers still to be written to database.</p>
+<hr>
+</section>
+<section id="section-2" class="level3">
+<h3 class="anchored" data-anchor-id="section-2"><command attach=""></command></h3>
+<blockquote class="blockquote">
+<pre><code> &lt;Command attach&gt; (*args:Any, **kwargs:Any)</code></pre>
+</blockquote>
+<p>Attach extra matadata to JSON objects read from stdin.</p>
+<hr>
+</section>
+<section id="section-3" class="level3">
+<h3 class="anchored" data-anchor-id="section-3"><command finfo=""></command></h3>
+<blockquote class="blockquote">
+<pre><code> &lt;Command finfo&gt; (*args:Any, **kwargs:Any)</code></pre>
+</blockquote>
+<p>Output json objects with folder information.</p>
+<hr>
+</section>
+<section id="section-4" class="level3">
+<h3 class="anchored" data-anchor-id="section-4"><command filter=""></command></h3>
+<blockquote class="blockquote">
+<pre><code> &lt;Command filter&gt; (*args:Any, **kwargs:Any)</code></pre>
+</blockquote>
+<p>Filter by ticker. Reads json objects from stdin and writes filtered objects to stdout.</p>
+<hr>
+</section>
+<section id="section-5" class="level3">
+<h3 class="anchored" data-anchor-id="section-5"><command query=""></command></h3>
+<blockquote class="blockquote">
+<pre><code> &lt;Command query&gt; (*args:Any, **kwargs:Any)</code></pre>
+</blockquote>
+<p>Write a custom query using a string template. Reads json objects from stdin and writes queries to stdout.</p>
+<hr>
+</section>
+<section id="section-6" class="level3">
+<h3 class="anchored" data-anchor-id="section-6"><command library=""></command></h3>
+<blockquote class="blockquote">
+<pre><code> &lt;Command library&gt; (*args:Any, **kwargs:Any)</code></pre>
+</blockquote>
+<hr>
+</section>
+<section id="section-7" class="level3">
+<h3 class="anchored" data-anchor-id="section-7"><group rm=""></group></h3>
+<blockquote class="blockquote">
+<pre><code> &lt;Group rm&gt; (*args:Any, **kwargs:Any)</code></pre>
+</blockquote>
+<p>Remove.</p>
+<hr>
+</section>
+<section id="section-8" class="level3">
+<h3 class="anchored" data-anchor-id="section-8"><command dates=""></command></h3>
+<blockquote class="blockquote">
+<pre><code> &lt;Command dates&gt; (*args:Any, **kwargs:Any)</code></pre>
+</blockquote>
+<hr>
+</section>
+<section id="section-9" class="level3">
+<h3 class="anchored" data-anchor-id="section-9"><command versions=""></command></h3>
+<blockquote class="blockquote">
+<pre><code> &lt;Command versions&gt; (*args:Any, **kwargs:Any)</code></pre>
+</blockquote>
+<hr>
+</section>
+<section id="section-10" class="level3">
+<h3 class="anchored" data-anchor-id="section-10"><command symbols=""></command></h3>
+<blockquote class="blockquote">
+<pre><code> &lt;Command symbols&gt; (*args:Any, **kwargs:Any)</code></pre>
+</blockquote>
+<hr>
+</section>
+<section id="section-11" class="level3">
+<h3 class="anchored" data-anchor-id="section-11"><command libraries=""></command></h3>
+<blockquote class="blockquote">
+<pre><code> &lt;Command libraries&gt; (*args:Any, **kwargs:Any)</code></pre>
+</blockquote>
+<hr>
+</section>
+<section id="section-12" class="level3">
+<h3 class="anchored" data-anchor-id="section-12"><group ls=""></group></h3>
+<blockquote class="blockquote">
+<pre><code> &lt;Group ls&gt; (*args:Any, **kwargs:Any)</code></pre>
+</blockquote>
+<p>List information about a library</p>
+<hr>
+</section>
+<section id="section-13" class="level3">
+<h3 class="anchored" data-anchor-id="section-13"><command create=""></command></h3>
+<blockquote class="blockquote">
+<pre><code> &lt;Command create&gt; (*args:Any, **kwargs:Any)</code></pre>
+</blockquote>
+<p>Create a blank library</p>
+<hr>
+</section>
+<section id="section-14" class="level3">
+<h3 class="anchored" data-anchor-id="section-14"><command echo=""></command></h3>
+<blockquote class="blockquote">
+<pre><code> &lt;Command echo&gt; (*args:Any, **kwargs:Any)</code></pre>
+</blockquote>
+<p>Debugging tool that echoes back the arctic object.</p>
+<hr>
+</section>
+<section id="section-15" class="level3">
+<h3 class="anchored" data-anchor-id="section-15"><group arctic=""></group></h3>
+<blockquote class="blockquote">
+<pre><code> &lt;Group arctic&gt; (*args:Any, **kwargs:Any)</code></pre>
+</blockquote>
+<hr>
+</section>
+<section id="section-16" class="level3">
+<h3 class="anchored" data-anchor-id="section-16"><command pfmt=""></command></h3>
+<blockquote class="blockquote">
+<pre><code> &lt;Command pfmt&gt; (*args:Any, **kwargs:Any)</code></pre>
+</blockquote>
+<p>Simple jq like utility to pretty format json objects.</p>
+<hr>
+</section>
+<section id="section-17" class="level3">
+<h3 class="anchored" data-anchor-id="section-17"><command etf=""></command></h3>
+<blockquote class="blockquote">
+<pre><code> &lt;Command etf&gt; (*args:Any, **kwargs:Any)</code></pre>
+</blockquote>
+<p>Output constituents of ETF including the ETF itself</p>
+<hr>
+<p><a href="https://github.com/n-petit/lobster-tools/blob/main/lobster_tools/arctic_cli.py#L158" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="clickctx" class="level3">
+<h3 class="anchored" data-anchor-id="clickctx">ClickCtx</h3>
+<blockquote class="blockquote">
+<pre><code> ClickCtx (*args, **kwargs)</code></pre>
+</blockquote>
+<p>Base class for protocol classes.</p>
+<p>Protocol classes are defined as::</p>
+<pre><code>class Proto(Protocol):
+    def meth(self) -&gt; int:
+        ...</code></pre>
+<p>Such classes are primarily used with static type checkers that recognize structural subtyping (static duck-typing).</p>
+<p>For example::</p>
+<pre><code>class C:
+    def meth(self) -&gt; int:
+        return 0
+
+def func(x: Proto) -&gt; int:
+    return x.meth()
+
+func(C())  # Passes static type check</code></pre>
+<p>See PEP 544 for details. Protocol classes decorated with <span class="citation" data-cites="typing.runtime_checkable">@typing.runtime_checkable</span> act as simple-minded runtime protocols that check only the presence of given attributes, ignoring their type signatures. Protocol classes can be generic, they are defined as::</p>
+<pre><code>class GenProto(Protocol[T]):
+    def meth(self) -&gt; T:
+        ...</code></pre>
+<hr>
+<p><a href="https://github.com/n-petit/lobster-tools/blob/main/lobster_tools/arctic_cli.py#L149" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="clickctxobj" class="level3">
+<h3 class="anchored" data-anchor-id="clickctxobj">ClickCtxObj</h3>
+<p>Purely for type hinting. for instance <code>arctic_library</code> not always there.</p>
+<hr>
+<p><a href="https://github.com/n-petit/lobster-tools/blob/main/lobster_tools/arctic_cli.py#L135" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="consolenotify" class="level3">
+<h3 class="anchored" data-anchor-id="consolenotify">ConsoleNotify</h3>
+<blockquote class="blockquote">
+<pre><code> ConsoleNotify ()</code></pre>
+</blockquote>
+<p>Initialize self. See help(type(self)) for accurate signature.</p>
+<hr>
+<p><a href="https://github.com/n-petit/lobster-tools/blob/main/lobster_tools/arctic_cli.py#L94" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="options" class="level3">
+<h3 class="anchored" data-anchor-id="options">Options</h3>
+<blockquote class="blockquote">
+<pre><code> Options ()</code></pre>
+</blockquote>
+<p>Initialize self. See help(type(self)) for accurate signature.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
