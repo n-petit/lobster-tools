@@ -13,7 +13,6 @@ from omegaconf import OmegaConf
 from pathlib import Path
 from .config import MainConfig, Overrides, register_configs, get_config
 from .preprocessing import *
-from .querying import *
 from .flow_decomposition import *
 from .config import etf_to_equities
 import pandas as pd
