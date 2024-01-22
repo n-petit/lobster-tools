@@ -17,7 +17,6 @@ from numpy.typing import NDArray
 from sklearn.neighbors import KDTree
 
 from .preprocessing import *
-from .querying import *
 
 # %% ../notebooks/03_flow_decomposition.ipynb 5
 def get_times(df: pd.DataFrame) -> NDArray[np.datetime64]:
