@@ -3,13 +3,17 @@
 # %% auto 0
 __all__ = ['cfg', 'CONTEXT_SETTINGS', 'O', 'C', 'ArcticLibraryInfo', 'get_library_info', 'Options', 'ConsoleNotify',
            'ClickCtxObj', 'ClickCtx', 'etf', 'pfmt', 'arctic', 'echo', 'create', 'ls', 'libraries', 'symbols',
-           'versions', 'dates', 'rm', 'library', 'query', 'filter', 'finfo', 'attach', 'diff', 'single_write']
+           'versions', 'dates', 'rm', 'library', 'query', 'filter', 'finfo', 'attach', 'diff', 'single_write',
+           'process_ticker', 'dump']
 
 # %% ../notebooks/05_arctic_cli.ipynb 4
 import json
+import socket
+import subprocess
 import sys
 import textwrap
 import typing as t
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import asdict, dataclass
 from pprint import pformat
 from string import Template
@@ -488,3 +492,70 @@ def single_write(
     else:
         arctic_library.write(symbol=ticker, data=df)
     C.sucess()
+
+# %% ../notebooks/05_arctic_cli.ipynb 10
+def process_ticker(ticker, ticker_till_end, full):
+    """Chain of mkdir, unzip, write to arctic db, remove tmp folder."""
+
+    tmp_dir = f"/nfs/home/nicolasp/home/data/tmp/{ticker_till_end}"
+    raw_data = f"{full}"
+
+    subprocess.run(["mkdir", tmp_dir])
+
+    subprocess.run(["7z", "x", raw_data, f"-o{tmp_dir}"])
+
+    subprocess.run(
+        ["arctic", "--library=demo", "single-write", f"--ticker={ticker}"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    subprocess.run(["rm", "-rf", tmp_dir])
+
+def _echo(ticker, ticker_till_end, full):
+    "Echo back function inputs"
+    print(ticker, ticker_till_end, full)
+
+@arctic.command()
+@click.option(
+    "-t", "--tickers", multiple=True, type=str, help="Tickers to add to database."
+)
+@click.option(
+    "-s", "--server_numbers", multiple=True, type=str, help="RAPID servers to run on."
+)
+@click.option(
+    "--max_workers_per_server", type=int, help="Max number of workers per server."
+)
+def dump(
+    server_numbers,
+    tickers,
+    max_workers_per_server=1,
+):
+    host_name = socket.gethostname()
+    print(f"starting on hostname {host_name}")
+    finfo = infer_ticker_dict("/nfs/lobster_data/lobster_raw/2021")
+
+    # tickers = [
+    #     "XLB",
+    #     "MSFT",
+    #     "XLK",
+    #     "XLY",
+    #     "AMD",
+    # ]
+    finfo = [x for x in finfo if x.ticker in tickers]
+
+    # servers to split jobs to
+    # server_numbers: list[str] = ["02", "18", "19", "20", "21"]
+    servers = ["omi-rapid-" + x for x in server_numbers]
+
+    job_chunks = np.array_split(finfo, len(servers))
+    server_to_jobs = {
+        server: job_chunk.tolist() for server, job_chunk in zip(servers, job_chunks)
+    }
+    jobs = server_to_jobs[host_name]
+    tickers, tickers_till_end, full = zip(
+        *[(f.ticker, f.ticker_till_end, f.full) for f in jobs]
+    )
+
+    with ProcessPoolExecutor(max_workers=max_workers_per_server) as executor:
+        executor.map(process_ticker, tickers, tickers_till_end, full)
