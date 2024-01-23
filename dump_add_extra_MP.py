@@ -1,9 +1,11 @@
 """Add just a few tickers that weren't auto done..Will move this into arctic CLI at some stage."""
-import subprocess
 import socket
+import subprocess
 from concurrent.futures import ProcessPoolExecutor
-from lobster_tools.preprocessing import infer_ticker_dict
+
 import numpy as np
+
+from lobster_tools.preprocessing import infer_ticker_dict
 
 
 def process_ticker(ticker, ticker_till_end, full):
@@ -16,13 +18,13 @@ def process_ticker(ticker, ticker_till_end, full):
 
     subprocess.run(["7z", "x", raw_data, f"-o{tmp_dir}"])
 
-    # subprocess.run(
-    #     ["arctic", "--library=2021", "single-write", f"--ticker={ticker}"],
-    #     stdout=subprocess.PIPE,
-    #     stderr=subprocess.PIPE,
-    # )
+    subprocess.run(
+        ["arctic", "--library=2021", "single-write", f"--ticker={ticker}"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
 
-    # subprocess.run(["rm", "-rf", tmp_dir])
+    subprocess.run(["rm", "-rf", tmp_dir])
 
 
 def demo(ticker, ticker_till_end, full):
@@ -46,7 +48,10 @@ if __name__ == "__main__":
     ]
     finfo = [x for x in finfo if x.ticker in tickers_to_add]
 
-    servers = ["omi-rapid-" + x for x in ["02", "18", "19", "20", "21"]]
+    # servers to split jobs to
+    server_numbers: list[str] = ["02", "18", "19", "20", "21"]
+    servers = ["omi-rapid-" + x for x in server_numbers]
+
     job_chunks = np.array_split(finfo, len(servers))
     server_to_jobs = {
         server: job_chunk.tolist() for server, job_chunk in zip(servers, job_chunks)
