@@ -3,7 +3,6 @@ import subprocess
 import socket
 from concurrent.futures import ProcessPoolExecutor
 from lobster_tools.preprocessing import infer_ticker_dict
-import socket
 import numpy as np
 
 
@@ -48,7 +47,6 @@ if __name__ == "__main__":
     finfo = [x for x in finfo if x.ticker in tickers_to_add]
 
     servers = ["omi-rapid-" + x for x in ["02", "18", "19", "20", "21"]]
-    # servers = ["omi-rapid-" + x for x in ["19"]]
     job_chunks = np.array_split(finfo, len(servers))
     server_to_jobs = {
         server: job_chunk.tolist() for server, job_chunk in zip(servers, job_chunks)
