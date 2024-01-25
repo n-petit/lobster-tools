@@ -1,6 +1,7 @@
 import setuptools
 
 REQUIRED_PACKAGES = [
+    "absl-py",
     "arcticdb",
     "chardet",
     "click",
