@@ -19,4 +19,4 @@ jobs:
           pip install --upgrade wheel
 
       - name: Run shell script
-        run: run.sh
+        run: ./run.sh
