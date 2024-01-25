@@ -1,9 +1,0 @@
-website:
-  sidebar:
-    contents:
-      - index.ipynb
-      - 00_preprocessing.ipynb
-      - 01_querying.ipynb
-      - 02_transformation.ipynb
-      - 03_visualisation.ipynb
-      - 04_flow_decomposition.ipynb
