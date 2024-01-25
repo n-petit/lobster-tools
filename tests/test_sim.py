@@ -3,7 +3,7 @@ from absl.testing import parameterized
 
 import numpy as np
 
-from lobster_tools import geo
+from lobster_tools import sim
 
 class GeoTest(parameterized.TestCase):
 
@@ -11,7 +11,7 @@ class GeoTest(parameterized.TestCase):
       {'npts': 100},
       {'npts': 1_000})
   def test_get_numpy_array(self, npts):
-    ans = geo.get_numpy_array(npts)
+    ans = sim.get_numpy_array(npts)
     self.assertIsInstance(ans, np.ndarray)
 
   def test_return_true(self):

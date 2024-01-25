@@ -2,13 +2,13 @@ from absl import app
 from absl import flags
 from absl import logging
 
-from lobster_tools import geo
+from lobster_tools import sim
 
 NPTS = flags.DEFINE_integer(
     name='npts', default=1000, help='Number of data points')
 
 def main(_):
-    ans = geo.get_numpy_array(NPTS.value)
+    ans = sim.get_numpy_array(NPTS.value)
     logging.info(ans[-1])
 
 
