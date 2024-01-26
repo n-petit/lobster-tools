@@ -1,5 +1,7 @@
 import setuptools
 
+from lobster_tools import __version__
+
 REQUIRED_PACKAGES = [
     "absl-py",
     "arcticdb",
@@ -27,8 +29,8 @@ CONSOLE_SCRIPTS = [
 setuptools.setup(
     name="lobster-tools",
     license="MIT License",
-    version="0.0.18",
-    description="",
+    version=__version__,
+    description="Python package for working with LOBSTER data (the limit order book data from Nasdaq).",
     url="https://github.com/n-petit/lobster-tools",
     author="Nicolas Petit",
     author_email="nicolas.petit@keble.ox.ac.uk",
