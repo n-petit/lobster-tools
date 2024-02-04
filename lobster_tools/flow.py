@@ -104,7 +104,7 @@ def get_feature_names(tolerances: list[str]):
     features = [
         "_".join(x)
         for x in it.product(
-            _FACTORS, tolerances, _SAME_SIGN_OPPOSITE_SIGN, _BEFORE_AFTER
+            _FACTORS, _SAME_SIGN_OPPOSITE_SIGN, _BEFORE_AFTER, tolerances
         )
     ]
     return features
@@ -113,16 +113,16 @@ def get_feature_names(tolerances: list[str]):
 # not sure about etf_trade_time type
 def evaluate_features(
     equity_executions: pd.DataFrame,
-    neigh: np.ndarray,
-    etf_trade_time: np.datetime64,
+    neighbors: np.ndarray,
+    etf_trade_time: float,
     etf_trade_direction: int,
 ):
 
-    cols = ["size", "price", "direction", "ticker", "notional"]
+    cols = ["time", "size", "price", "direction", "ticker", "notional"]
     features = (
-        equity_executions.iloc[neigh][cols]
+        equity_executions.iloc[neighbors][cols]
         .assign(
-            equityBefore=lambda _df: _df.index < etf_trade_time,
+            equityBefore=lambda _df: _df.time < etf_trade_time,
             sameSign=lambda _df: _df.direction == etf_trade_direction,
         )
         .groupby(["sameSign", "equityBefore"])
@@ -135,20 +135,10 @@ def evaluate_features(
         .reorder_levels([-1, 0, 1])
     )
 
-    # features = (
-    #     df.groupby(["sameSign", "equityBefore"])
-    #     .agg(
-    #         notional=("notional", "sum"),
-    #         numTrades=("size", "count"),
-    #         distinctTickers=("ticker", "nunique"),
-    #     )
-    #     .stack()
-    #     .reorder_levels([-1, 0, 1])
-    # )
-
-    assert len(features.index.names) == 3
-    assert features.index.names[1] == "sameSign"
-    assert features.index.names[2] == "equityBefore"
+    # TODO: turn into unittest
+    # assert len(features.index.names) == 3
+    # assert features.index.names[1] == "sameSign"
+    # assert features.index.names[2] == "equityBefore"
 
     sameSignOppositeSign = features.index.levels[1].map({True: "ss", False: "os"})
     equityBeforeAfter = features.index.levels[2].map({True: "bf", False: "af"})
@@ -157,6 +147,8 @@ def evaluate_features(
     features.index = features.index.set_levels(levels=levels, level=[1, 2])
     features.index = features.index.to_flat_index()
     features.index = ["_".join(x) for x in features.index]
+
+    features.reindex(get_feature_names(tolerances=FLAGS.tolerances), fill_value=0.0)
 
     return features
 
