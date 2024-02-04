@@ -31,6 +31,7 @@ class Event(enum.Enum):
     TRADING_HALT = 9
     RESUME_QUOTE = 10
     TRADING_RESUME = 11
+    AGGREGATED = 12
 
 
 @enum.unique
