@@ -176,6 +176,26 @@ def evaluate_features(
     return features
 
 
+def add_marginals(df: pd.DataFrame) -> pd.DataFrame:
+    for col_name in _FACTORS:
+        # marginalise over all
+        df[col_name] = (
+            df[col_name + "_ss_af"]
+            + df[col_name + "_ss_bf"]
+            + df[col_name + "_os_af"]
+            + df[col_name + "_os_bf"]
+        )
+
+        # marginalise over bf/af
+        df[col_name + "_ss"] = df[col_name + "_ss_af"] + df[col_name + "_ss_bf"]
+        df[col_name + "_os"] = df[col_name + "_os_af"] + df[col_name + "_os_bf"]
+
+        # marginalise over ss/os
+        df[col_name + "_af"] = df[col_name + "_ss_af"] + df[col_name + "_os_af"]
+        df[col_name + "_bf"] = df[col_name + "_ss_bf"] + df[col_name + "_os_bf"]
+    return df
+
+
 _COLUMNS = [
     "time",
     "event",
@@ -248,13 +268,19 @@ def main(_):
             axis=1,
             result_type="expand",
         )
-    
+
         features = features.fillna(0.0)
-        
-        feature_to_type = {'numTrades': 'int', 'distinctTickers': 'int', 'notional': 'float'}
+
+        feature_to_type = {
+            "numTrades": "int",
+            "distinctTickers": "int",
+            "notional": "float",
+        }
         for feature, type_ in feature_to_type.items():
             cols = features.filter(like=feature).columns
             features[cols] = features[cols].astype(type_)
+
+        features = add_marginals(features)
 
         tolerance_to_features[tolerance] = features
 
