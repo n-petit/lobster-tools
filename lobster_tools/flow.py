@@ -110,36 +110,41 @@ def add_neighbors(
 
 
 # TODO: datetime parser for absl
-_DATE_RANGE = (dt.datetime(2021, 1, 4), dt.datetime(2021, 1, 6))
-_FACTORS = ["notional", "numTrades", "distinctTickers"]  # not a great name
+_DATE_RANGE = (dt.datetime(2021, 1, 4), dt.datetime(2021, 1, 10))
+_FEATURE_FUNCTIONS = ["notional", "numTrades", "distinctTickers"]
 _SAME_SIGN_OPPOSITE_SIGN = ["ss", "os"]
 _BEFORE_AFTER = ["bf", "af"]
 
-# without tolerance
 _FEATURE_NAMES = [
-    "_".join(x) for x in it.product(_FACTORS, _SAME_SIGN_OPPOSITE_SIGN, _BEFORE_AFTER)
+    "_".join(x)
+    for x in it.product(_FEATURE_FUNCTIONS, _SAME_SIGN_OPPOSITE_SIGN, _BEFORE_AFTER)
 ]
 
+_MARGINAL_BEFORE_AFTER = [
+    "_".join(x) for x in it.product(_FEATURE_FUNCTIONS, _SAME_SIGN_OPPOSITE_SIGN)
+]
+_MARGINAL_SAME_SIGN_OPPOSITE_SIGN = [
+    "_".join(x) for x in it.product(_FEATURE_FUNCTIONS, _BEFORE_AFTER)
+]
 
-# with tolerance
-# def get_feature_names(tolerances: list[str]):
-#     features = [
-#         "_".join(x)
-#         for x in it.product(
-#             _FACTORS, _SAME_SIGN_OPPOSITE_SIGN, _BEFORE_AFTER, tolerances
-#         )
-#     ]
-#     return features
+_FEATURE_NAMES_WITH_MARGINALS = (
+    _FEATURE_NAMES
+    + _FEATURE_FUNCTIONS
+    + _MARGINAL_BEFORE_AFTER
+    + _MARGINAL_SAME_SIGN_OPPOSITE_SIGN
+)
+_FEATURE_NAMES_WITH_MARGINALS
 
 
-# not sure about etf_trade_time type
+_QUANTILES = [0.1, 0.9]
+_LOOKBACK = 3
+
 def evaluate_features(
     equity_executions: pd.DataFrame,
     neighbors: np.ndarray,
     etf_trade_time: float,
     etf_trade_direction: int,
 ):
-
     cols = ["time", "size", "price", "direction", "ticker", "notional"]
     features = (
         equity_executions.iloc[neighbors][cols]
@@ -177,7 +182,7 @@ def evaluate_features(
 
 
 def add_marginals(df: pd.DataFrame) -> pd.DataFrame:
-    for col_name in _FACTORS:
+    for col_name in _FEATURE_FUNCTIONS:
         # marginalise over all
         df[col_name] = (
             df[col_name + "_ss_af"]
@@ -193,6 +198,22 @@ def add_marginals(df: pd.DataFrame) -> pd.DataFrame:
         # marginalise over ss/os
         df[col_name + "_af"] = df[col_name + "_ss_af"] + df[col_name + "_os_af"]
         df[col_name + "_bf"] = df[col_name + "_ss_bf"] + df[col_name + "_os_bf"]
+    return df
+
+
+def add_decile_tags(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy(deep=True)
+    feature_columns = [
+        col for col in df.columns if (col.startswith("_") and ("neighbors" not in col))
+    ]
+
+    for col in feature_columns:
+        df[col + "_decile"] = 0
+        mask = df[col] != 0
+        df.loc[mask, col + "_decile"] = 1 + pd.qcut(
+            df.loc[mask, col], 10, labels=False, duplicates="drop"
+        )
+
     return df
 
 
@@ -258,7 +279,7 @@ def main(_):
         )
         neighbors["nonIso"] = neighbors["neighbors"].apply(lambda x: x.size > 0)
 
-        features = pd.concat((etf_executions, neighbors), axis=1).apply(
+        features = pd.concat((etf_executions, neighbors), axis=1)[neighbors.nonIso].apply(
             lambda row: evaluate_features(
                 equity_executions=equity_executions,
                 neighbors=row.neighbors,
@@ -291,6 +312,7 @@ def main(_):
     write_pickle = True
     if write_pickle:
         output_dir = Path("./private/wip/")
+        neighbors.to_pickle(output_dir / "neighbors.pkl")
         equity_executions.to_pickle(output_dir / "equity_executions.pkl")
         etf_executions.to_pickle(output_dir / "etf_executions.pkl")
 
