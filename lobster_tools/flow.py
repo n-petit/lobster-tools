@@ -18,9 +18,11 @@ from arcticdb import Arctic
 from numpy.typing import NDArray
 from sklearn.neighbors import KDTree
 
+import pickle
+
 flags.DEFINE_list(
     "tolerances",
-    ["10ms", "20ms"],
+    ["20ms"],
     "Epsilon neighbors in time.",
 )
 flags.DEFINE_string(
@@ -48,8 +50,7 @@ def str_to_nanoseconds(time: str) -> int:
 
 
 def aggregate_duplicates(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-    df.reset_index(inplace=True)
+    df = df.reset_index()
     duplicates = df[df.duplicated(subset=["datetime", "direction"], keep=False)]
 
     aggregated_sizes = duplicates.groupby(["datetime", "direction"])["size"].transform(
@@ -62,12 +63,12 @@ def aggregate_duplicates(df: pd.DataFrame) -> pd.DataFrame:
         Event.AGGREGATED.value,
         _MERGED_ORDER_ID,
     ]
-    df.drop_duplicates(subset=["datetime"], keep="last", inplace=True)
-    df.set_index("datetime", drop=True, inplace=True)
+    df = df.drop_duplicates(subset=["datetime"], keep="last")
+    df = df.set_index("datetime", drop=True)
     return df
 
 
-def add_neighbors(
+def old_add_neighbors(
     etf_executions: pd.DataFrame,
     equity_executions: pd.DataFrame,
     tolerances: list[str],
@@ -93,21 +94,42 @@ def add_neighbors(
     return etf_executions
 
 
+# apply this by day. maybe don't need get times as do it directly on "time" column
+def add_neighbors(
+    etf_executions: pd.DataFrame,
+    equity_executions: pd.DataFrame,
+    tolerance: str,
+):
+    etf_times = get_times(etf_executions)
+    equity_times = get_times(equity_executions)
+    equity_kd_tree = KDTree(equity_times, metric="l1")
+
+    tolerance_in_nanoseconds = str_to_nanoseconds(tolerance)
+    neighbors = equity_kd_tree.query_radius(etf_times, r=tolerance_in_nanoseconds)
+    return neighbors
+
+
 # TODO: datetime parser for absl
 _DATE_RANGE = (dt.datetime(2021, 1, 4), dt.datetime(2021, 1, 6))
 _FACTORS = ["notional", "numTrades", "distinctTickers"]  # not a great name
 _SAME_SIGN_OPPOSITE_SIGN = ["ss", "os"]
 _BEFORE_AFTER = ["bf", "af"]
 
+# without tolerance
+_FEATURE_NAMES = [
+    "_".join(x) for x in it.product(_FACTORS, _SAME_SIGN_OPPOSITE_SIGN, _BEFORE_AFTER)
+]
 
-def get_feature_names(tolerances: list[str]):
-    features = [
-        "_".join(x)
-        for x in it.product(
-            _FACTORS, _SAME_SIGN_OPPOSITE_SIGN, _BEFORE_AFTER, tolerances
-        )
-    ]
-    return features
+
+# with tolerance
+# def get_feature_names(tolerances: list[str]):
+#     features = [
+#         "_".join(x)
+#         for x in it.product(
+#             _FACTORS, _SAME_SIGN_OPPOSITE_SIGN, _BEFORE_AFTER, tolerances
+#         )
+#     ]
+#     return features
 
 
 # not sure about etf_trade_time type
@@ -142,13 +164,14 @@ def evaluate_features(
 
     sameSignOppositeSign = features.index.levels[1].map({True: "ss", False: "os"})
     equityBeforeAfter = features.index.levels[2].map({True: "bf", False: "af"})
-    levels = [sameSignOppositeSign, equityBeforeAfter]
 
-    features.index = features.index.set_levels(levels=levels, level=[1, 2])
+    features.index = features.index.set_levels(
+        levels=[sameSignOppositeSign, equityBeforeAfter], level=[1, 2]
+    )
     features.index = features.index.to_flat_index()
     features.index = ["_".join(x) for x in features.index]
 
-    features.reindex(get_feature_names(tolerances=FLAGS.tolerances), fill_value=0.0)
+    features.reindex(_FEATURE_NAMES, fill_value=0.0)
 
     return features
 
@@ -181,7 +204,7 @@ def main(_):
             date_range=_DATE_RANGE,
         )
         .pipe(aggregate_duplicates)
-        .pipe(assign_mid)
+        .eval("notional = price * size")
     )
 
     etf_executions = (
@@ -196,27 +219,54 @@ def main(_):
         .pipe(assign_mid)
     )
 
-    annotated_etf_executions = add_neighbors(
-        etf_executions=etf_executions,
-        equity_executions=equity_executions,
-        tolerances=FLAGS.tolerances,
-    )
-    logging.info(annotated_etf_executions.head())
+    # TODO: move these to unittests
+    assert etf_executions.index.is_monotonic_increasing
+    assert equity_executions.index.is_monotonic_increasing
+    assert etf_executions.index.is_unique
+    assert equity_executions.index.is_unique
 
-    features = get_feature_names(tolerances=FLAGS.tolerances)
-    logging.info(features)
+    tolerance_to_features = {}
+    for tolerance in FLAGS.tolerances:
 
-    annotated_etf_executions = annotated_etf_executions.assign(
-        **{feature: 0.0 for feature in features}
-    )
-    logging.info(annotated_etf_executions.dtypes)
+        neighbors = pd.DataFrame(
+            index=etf_executions.index, columns=["neighbors", "nonIso"]
+        )
+        neighbors["neighbors"] = add_neighbors(
+            etf_executions=etf_executions,
+            equity_executions=equity_executions,
+            tolerance=tolerance,
+        )
+        neighbors["nonIso"] = neighbors["neighbors"].apply(lambda x: x.size > 0)
+
+        features = pd.concat((etf_executions, neighbors), axis=1).apply(
+            lambda row: evaluate_features(
+                equity_executions=equity_executions,
+                neighbors=row.neighbors,
+                etf_trade_direction=row.direction,
+                etf_trade_time=row.time,
+            ),
+            axis=1,
+            result_type="expand",
+        )
+    
+        features = features.fillna(0.0)
+        
+        feature_to_type = {'numTrades': 'int', 'distinctTickers': 'int', 'notional': 'float'}
+        for feature, type_ in feature_to_type.items():
+            cols = features.filter(like=feature).columns
+            features[cols] = features[cols].astype(type_)
+
+        tolerance_to_features[tolerance] = features
+
+    output_dir = Path("./private/wip/")
+    with open(output_dir / "tolerance_to_features.pkl", "wb") as f:
+        pickle.dump(tolerance_to_features, f)
 
     write_pickle = True
     if write_pickle:
         output_dir = Path("./private/wip/")
         equity_executions.to_pickle(output_dir / "equity_executions.pkl")
         etf_executions.to_pickle(output_dir / "etf_executions.pkl")
-        annotated_etf_executions.to_pickle(output_dir / "annotated_etf_executions.pkl")
 
 
 if __name__ == "__main__":
