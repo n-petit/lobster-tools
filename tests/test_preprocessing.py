@@ -7,7 +7,7 @@ from absl.testing import absltest
 from lobster_tools.preprocessing import FolderInfo, infer_ticker_date_ranges
 
 
-class InferTickerDateRangesTest(absltest.TestCase):
+class TestInferTickerDateRanges(absltest.TestCase):
     def setUp(self):
         super().setUp()
         self.dir = tempfile.mkdtemp()
