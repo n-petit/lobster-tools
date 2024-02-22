@@ -1,3 +1,4 @@
+"""Not really in use atm."""
 from absl import flags
 from absl import logging
 from absl import app
@@ -9,16 +10,18 @@ import typing as t
 from arcticdb import Arctic, QueryBuilder
 from arcticdb.version_store.library import Library
 
-flags.DEFINE_string(
-    "s3_uri",
-    "s3://10.146.104.101:9100:lobster?access=minioadmin&secret=minioadmin",
-    "URI of the S3 bucket to connect to.",
-)
-flags.DEFINE_string(
-    "library",
-    "2021",
-    "Arctic library to connect to.",
-)
+from lobster_tools import config # noqa: F401
+
+# flags.DEFINE_string(
+#     "s3_uri",
+#     "s3://10.146.104.101:9100:lobster?access=minioadmin&secret=minioadmin",
+#     "URI of the S3 bucket to connect to.",
+# )
+# flags.DEFINE_string(
+#     "library",
+#     "2021",
+#     "Arctic library to connect to.",
+# )
 
 FLAGS = flags.FLAGS
 

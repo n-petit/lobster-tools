@@ -22,7 +22,7 @@ from arcticdb import Arctic, QueryBuilder
 from arcticdb.exceptions import LibraryNotFound
 from arcticdb.version_store.library import Library
 
-from lobster_tools.config import (
+from lobster_tools.hydra_config import (
     Overrides,
     etf_to_equities,
     get_config,

@@ -1,3 +1,4 @@
+"""Old flow decomposition. In principle no longer in use and refactored into flow.py"""
 __all__ = [
     "str_to_nanoseconds",
     "col_to_dtype",

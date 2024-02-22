@@ -1,3 +1,4 @@
+"""In principle no longer in use. Refactored into flow.py"""
 __all__ = ["quick_marginalize"]
 
 import datetime as dt
@@ -12,7 +13,7 @@ from arcticdb import Arctic, QueryBuilder
 from sklearn.linear_model import LinearRegression
 from sklearn.multioutput import MultiOutputRegressor
 
-from lobster_tools.config import (
+from lobster_tools.hydra_config import (
     NASDAQExchange,
     Overrides,
     etf_to_equities,

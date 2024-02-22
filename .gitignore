@@ -173,3 +173,9 @@ private
 outputs
 features
 scripts
+
+# nohup.out files
+*nohup*.out
+
+# vscode
+.vscode

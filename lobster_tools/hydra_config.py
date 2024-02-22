@@ -1,3 +1,4 @@
+"""Old hydra configs. In principle no longer in use."""
 __all__ = ['trading_days', 'all_days', 'trading_days_df', 'etf_to_equities', 'defaults_simple_local', 'NASDAQExchange',
            'ETFMapping', 'ETFMembers', 'ArcticDBConfig', 'DataConfig', 'ServerDataConfig', 'LocalDataConfig',
            'SampleDataConfig', 'HyperparametersConfig', 'SimpleHyperparametersConfig', 'FullHyperparametersConfig',

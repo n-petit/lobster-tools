@@ -1,99 +1,79 @@
-from dataclasses import dataclass, field
+import sys
+from decimal import Decimal
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from absl import app, flags, logging
 
-from lobster_tools import flow
+from lobster_tools import config  # noqa: F401
 
-flags.DEFINE_string(
-    "resample_freq",
-    "5T",
-    "Resample frequency.",
-)
 
-flags.DEFINE_list(
-    "markouts",
-    ["30S", "1T", "2T", "5T", "20T", "60T", "120T"],
-    "Markouts.",
-)
-
-# _MARKOUTS = ['1/2', '1', '2', '4']
-# flags.DEFINE_multi_float(
-#     "markouts",
-#     [0.5, 1.0, 2.0, 4.0],
-#     "Markouts as a function of the resample freq.",
-# )
+# markouts as fractions of the resample_freq
+MARKOUTS = [Decimal(x) for x in ["0.125", "0.25", "0.5", "1.0", "2.0", "4.0"]]
 
 FLAGS = flags.FLAGS
 
 
-def resampled_log_returns(group):
-    markouts = FLAGS.markouts
-    resample_freq = FLAGS.resample_freq
-
-    s = group.price.resample(
-        resample_freq, label="right", closed="right", offset="0S"
+def resampled_log_returns(group, resample_freq: str, markouts: list[Decimal]):
+    """Markouts computed from base and markout series. Base timeseries using last value
+    in ( ] and stamped right. Marked out price is first value of shifted ( ] stamped
+    left."""
+    base_offset = pd.Timedelta("0S")
+    base_resampled = group.price.resample(
+        resample_freq, label="right", closed="right", offset=base_offset
     ).last()
-    log_s = np.log(s)
+    log_base_resampled = np.log(base_resampled)
 
-    cols = ["contemp"] + [f"fRet_{markout}" for markout in markouts]
-    df = pd.DataFrame(index=s.index, columns=cols)
+    cols = ["contemp"] + [f"fRet_{markout}" for markout in markouts] + ["fRet_close"]
+    df = pd.DataFrame(index=base_resampled.index, columns=cols)
 
-    df["contemp"] = log_s - log_s.shift(1)
+    df["contemp"] = log_base_resampled - log_base_resampled.shift(1)
+
+    closing_price = group.price.resample("D").last().iat[-1]
+    df["fRet_close"] = np.log(closing_price) - log_base_resampled
+    df.loc[df.index[-1], "fRet_close"] = np.NaN  # last entry is always 0
 
     for markout in markouts:
-        offset = group.price.resample(
-            resample_freq, label="right", closed="right", offset=markout
-        ).last()
-        offset.index = offset.index - pd.Timedelta(markout)
-        df[f"fRet_{markout}"] = np.log(offset) - log_s
+        offset = float(markout) * pd.Timedelta(resample_freq)
+        offset_resampled = group.price.resample(
+            resample_freq, label="left", closed="right", offset=offset
+        ).first()
+        offset_resampled.index = offset_resampled.index - offset
+        df[f"fRet_{markout}"] = np.log(offset_resampled) - log_base_resampled
 
     return df
 
 
-@dataclass
-class ResampleFreq:
-    _str: str
-    timedelta: pd.Timedelta = field(init=False)
-
-    def __post_init__(self):
-        self.timedelta = pd.Timedelta(self._str)
-
-
-_OUTPUT_DIR = Path(__file__).parent.parent / "outputs"
-
-
 def main(_):
-    # resample_freq = ResampleFreq(FLAGS.resample_freq)
-    # markouts = [float(markout) * resample_freq.timedelta for markout in FLAGS.markouts]
-    logging.info(f"Resample freq: {FLAGS.resample_freq}")
-    logging.info(f"ETF: {FLAGS.etf}")
+    # output directories
+    output_dir = Path(FLAGS.output_dir)
+    etf_dir = output_dir / "etf" / FLAGS.etf
 
-    etf_dir = _OUTPUT_DIR / "latest" / FLAGS.etf
+    logging.get_absl_handler().use_absl_log_file(log_dir=etf_dir)
+    sys.stderr = logging.get_absl_handler().python_handler.stream
 
-    # TODO: load from arctic not only trades
+    logging.info(f"FLAGS: {FLAGS}")
+
+    # TODO: load from arctic and use mid
     etf_executions = pd.read_pickle(etf_dir / "etf_executions.pkl")
-    logging.info(etf_executions.head())
 
-    returns = etf_executions.groupby(etf_executions.index.date).apply(
-        resampled_log_returns
-    )
-    returns.index = returns.index.droplevel(0)
-    returns = returns.dropna()
-    logging.info(returns.head())
+    for resample_freq in FLAGS.resample_freqs:
+        resample_dir = etf_dir / "resample_freq" / resample_freq
+        resample_dir.mkdir(parents=True, exist_ok=True)
 
-    # save to disk
-    resample_dir = etf_dir / "resample"
-    resample_dir.mkdir(exist_ok=True)
-    returns.to_pickle(resample_dir / f"{FLAGS.resample_freq}.pkl")
+        returns = etf_executions.groupby(etf_executions.index.date).apply(
+            resampled_log_returns,
+            resample_freq=resample_freq,
+            markouts=MARKOUTS,
+        )
+        returns.index = returns.index.droplevel(0)
 
-    # TODO: hedged returns
+        # save to disk
+        returns.to_pickle(resample_dir / "returns.pkl")
 
-def echo(_):
-    print(FLAGS.resample_freq)
-    print(FLAGS.etf)
+        # TODO: hedged returns
+
 
 if __name__ == "__main__":
     app.run(main)

@@ -8,7 +8,7 @@ from typing import Literal
 import click
 import requests
 
-from lobster_tools.config import get_config
+from lobster_tools.hydra_config import get_config
 
 cfg = get_config()
 
