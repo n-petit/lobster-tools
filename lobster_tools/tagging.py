@@ -10,8 +10,9 @@ from sklearn.metrics import r2_score
 
 # from lobster_tools.preprocessing import Event
 # from lobster_tools import flow, returns
-import lobster_tools.config  # noqa: F401
-from lobster_tools.flow import _FEATURE_NAMES_WITH_MARGINALS, evaluate_features
+import lobster_tools.config
+from lobster_tools.config import _FEATURE_NAMES_WITH_MARGINALS  # noqa: F401
+from lobster_tools.flow import evaluate_features
 from lobster_tools import config
 
 

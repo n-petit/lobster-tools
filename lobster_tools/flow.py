@@ -1,5 +1,4 @@
 import datetime as dt
-import itertools as it
 import sys
 from pathlib import Path
 
@@ -9,7 +8,7 @@ from absl import app, flags, logging
 from arcticdb import Arctic, QueryBuilder
 from sklearn.neighbors import KDTree
 
-from lobster_tools.config import ETF_TO_EQUITIES
+from lobster_tools.config import _FEATURE_FUNCTIONS, _FEATURE_NAMES, ETF_TO_EQUITIES
 from lobster_tools.preprocessing import Event, EventGroup
 
 import lobster_tools.config  # noqa: F401
@@ -60,29 +59,6 @@ def aggregate_duplicates(df: pd.DataFrame) -> pd.DataFrame:
     assert df.index.is_unique
 
     return df
-
-
-_FEATURE_FUNCTIONS = ["notional", "numTrades", "distinctTickers"]
-_SAME_SIGN_OPPOSITE_SIGN = ["ss", "os"]
-_BEFORE_AFTER = ["bf", "af"]
-
-
-def _combine_features(*args):
-    return ["_".join(x) for x in it.product(*args)]
-
-
-_FEATURE_NAMES = _combine_features(
-    _FEATURE_FUNCTIONS, _SAME_SIGN_OPPOSITE_SIGN, _BEFORE_AFTER
-)
-_MARGINAL_BEFORE_AFTER = _combine_features(_FEATURE_FUNCTIONS, _SAME_SIGN_OPPOSITE_SIGN)
-_MARGINAL_SAME_SIGN_OPPOSITE_SIGN = _combine_features(_FEATURE_FUNCTIONS, _BEFORE_AFTER)
-
-_FEATURE_NAMES_WITH_MARGINALS = (
-    _FEATURE_NAMES
-    + _FEATURE_FUNCTIONS
-    + _MARGINAL_BEFORE_AFTER
-    + _MARGINAL_SAME_SIGN_OPPOSITE_SIGN
-)
 
 
 def evaluate_features(

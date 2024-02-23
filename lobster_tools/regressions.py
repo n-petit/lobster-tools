@@ -7,8 +7,9 @@ import pandas as pd
 from absl import app, flags, logging
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
+from lobster_tools.config import _FEATURE_NAMES_WITH_MARGINALS
 
-from lobster_tools.flow import _FEATURE_NAMES_WITH_MARGINALS, evaluate_features
+from lobster_tools.flow import evaluate_features
 
 import seaborn as sns
 import matplotlib.pyplot as plt
