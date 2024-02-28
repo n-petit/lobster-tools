@@ -7,7 +7,7 @@ import pandas as pd
 from absl import app, flags, logging
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
-from lobster_tools.config import _FEATURE_NAMES_WITH_MARGINALS
+from lobster_tools.config import FEATURE_NAMES_WITH_MARGINALS
 
 from lobster_tools.flow import evaluate_features
 
@@ -43,45 +43,20 @@ def main(_):
         eps_dir = etf_dir / "epsilon" / epsilon
         quantile_dir = eps_dir / "quantiles" / "_".join(map(str, FLAGS.quantiles))
         lookback_dir = quantile_dir / "lookback" / str(FLAGS.lookback)
+        resample_dir2 = lookback_dir / "resample_freq" / resample_freq
 
-        # etf_executions = pd.read_pickle(etf_dir / "etf_executions.pkl")
-        # tags = pd.read_pickle(lookback_dir / "tags.pkl")
-        # TAG_COLUMNS = tags.columns
+        cois_dict = pd.read_pickle(
+            resample_dir2 / "cois.pkl"
+        )
 
-        # etf_executions = etf_executions.drop(columns="notional")
-        # full = etf_executions.join(tags, how="inner")
-
-        # ofi calculation
-        # ofis_dict = {}
-        # for col in TAG_COLUMNS:
-        #     logging.info(f"computing ofi for {col}")
-        #     ofis = full.groupby([full.index.date, full[col]], observed=False).apply(
-        #         ofi, resample_freq=resample_freq
-        #     )
-        #     ofis.index = ofis.index.droplevel(0)
-        #     ofis = ofis.unstack(level=0)
-        #     ofis = ofis.fillna(0)
-        #     ofis.columns = ofis.columns.tolist()
-        #     ofis_dict[col] = ofis
-
-        # # write to disk
-        # resample_dir = lookback_dir / "resample_freq" / resample_freq
-        # resample_dir.mkdir(parents=True, exist_ok=True)
-
-        # print(ofis_dict)
-        # pd.to_pickle(ofis_dict, resample_dir / "ofis.pkl")
-
-        ################################################################################
-        ## regressions
-        ################################################################################
-        ofi_dict = pd.read_pickle(lookback_dir / "resample_freq" / resample_freq / "ofis.pkl")
-
+        # TODO: better folder structure
         resample_dir = etf_dir / "resample_freq" / resample_freq
         returns = pd.read_pickle(resample_dir / "returns.pkl")
 
-        for feature, ofi_df in ofi_dict.items():
+        res_dict = {}
+        for feature, coi_df in cois_dict.items():
             results = []
-            for tag, ofi_ser in ofi_df.items():
+            for tag, ofi_ser in coi_df.items():
                 ofi_ser = ofi_ser.dropna()
                 for markout, return_ser in returns.items():
                     return_ser = return_ser.dropna()
@@ -93,14 +68,59 @@ def main(_):
                     score = r2_score(Y, Y_hat)
 
                     results.append(
-                        {"feature": feature, "tag": tag, "markout": markout, "score": score}
+                        {
+                            "tag": tag,
+                            "markout": markout,
+                            "score": score,
+                        }
                     )
+            results = pd.DataFrame(results)
+            res_dict[feature] = results
 
+
+        # feature_dir = (
+        #     lookback_dir / "resample_freq" / resample_freq / "feature" / feature
+        # )
+        # feature_dir.mkdir(parents=True, exist_ok=True)
+        # results.to_pickle(feature_dir / "results.pkl")
+
+
+        plot_dir = etf_dir / "plots"
+        plot_dir.mkdir(parents=True, exist_ok=True)
+
+        for feature, df in res_dict.items():
+            p = sns.catplot(data=df, x='markout', y='score', hue='tag', kind='bar')
+            p.set(title=feature)
+            p.set_xticklabels(rotation=45)
+            plt.savefig(plot_dir / f"{feature}_univariate_regressions.png")
+
+
+
+        # no tagging
+        ofi_ser = pd.read_pickle(etf_dir / "resample_freq" / resample_freq / "coi_no_tagging.pkl")
+        results = []
+        for markout, return_ser in returns.items():
+            return_ser = return_ser.dropna()
+            X, Y = restrict_common_index(ofi_ser, return_ser)
+            X = X.values.reshape(-1, 1)
+            model = LinearRegression()
+            model.fit(X, Y)
+            Y_hat = model.predict(X)
+            score = r2_score(Y, Y_hat)
+
+            results.append(
+                {
+                    "markout": markout,
+                    "score": score,
+                }
+            )
         results = pd.DataFrame(results)
-        feature_dir = lookback_dir / "resample_freq" / resample_freq / "feature" / feature
-        feature_dir.mkdir(parents=True, exist_ok=True)
-        results.to_pickle(feature_dir / "results.pkl")
 
+        fig = plt.figure()
+        sns.barplot(results, y='score', x='markout')
+        plt.savefig(plot_dir / f"no_tagging_univariate_regressions.png")
+
+    
     return
     ##############################################################
     # moved to regressions.py
@@ -109,9 +129,9 @@ def main(_):
     # load returns data
 
     # univariate regressions
-    for feature, ofi_df in ofis_dict.items():
+    for feature, coi_df in ofis_dict.items():
         results = []
-        for tag, ofi_ser in ofi_df.items():
+        for tag, ofi_ser in coi_df.items():
             # TODO: only drop na if necessary
             ofi_ser = ofi_ser.dropna()
             returns = returns.dropna()

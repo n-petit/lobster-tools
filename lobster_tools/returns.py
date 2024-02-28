@@ -8,11 +8,10 @@ from absl import app, flags, logging
 
 from lobster_tools import config  # noqa: F401
 
-
-# markouts as fractions of the resample_freq
-MARKOUTS = [Decimal(x) for x in ["0.125", "0.25", "0.5", "1.0", "2.0", "4.0"]]
-
 FLAGS = flags.FLAGS
+
+# markouts as fractions of the resample frequency `resample_freq'
+MARKOUTS = [Decimal(x) for x in ["0.125", "0.25", "0.5", "1.0", "2.0", "4.0"]]
 
 
 def resampled_log_returns(group, resample_freq: str, markouts: list[Decimal]):
@@ -55,7 +54,7 @@ def main(_):
 
     logging.info(f"FLAGS: {FLAGS}")
 
-    # TODO: load from arctic and use mid
+    # TODO: load from arctic and use mid to mid
     etf_executions = pd.read_pickle(etf_dir / "etf_executions.pkl")
 
     for resample_freq in FLAGS.resample_freqs:

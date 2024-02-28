@@ -1,5 +1,4 @@
 import datetime as dt
-from enum import Enum
 from pathlib import Path
 
 import numpy as np
@@ -8,14 +7,10 @@ from absl import app, flags, logging
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 
-# from lobster_tools.preprocessing import Event
-# from lobster_tools import flow, returns
-import lobster_tools.config
-from lobster_tools.config import _FEATURE_NAMES_WITH_MARGINALS  # noqa: F401
-from lobster_tools.flow import evaluate_features
-from lobster_tools import config
+from lobster_tools import config  # noqa: F401
+from lobster_tools.config import FEATURE_NAMES_WITH_MARGINALS
 
-
+# TODO: allow for (0.1, 0.9), (0.1, 0.5, 0.9) ...
 flags.DEFINE_multi_float(
     "quantiles",
     [0.1, 0.9],
@@ -30,30 +25,6 @@ flags.DEFINE_integer(
 )
 
 FLAGS = flags.FLAGS
-
-
-class hello(Enum):
-    pass
-
-
-def ofi(df: pd.DataFrame):
-    return (
-        df[["size", "direction"]]
-        .eval("signed_size = size * direction")
-        .drop(columns=["direction"])
-        .resample(FLAGS.resample_freq, label="right", closed="left")
-        .sum()
-        .eval("ofi = signed_size / size")
-        .ofi.fillna(0)
-    )
-
-
-def restrict_common_index(
-    df1: pd.DataFrame, df2: pd.DataFrame
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Restrict two dataframes to their common index."""
-    common_index = df1.index.intersection(df2.index)
-    return df1.loc[common_index], df2.loc[common_index]
 
 
 def main(_):
@@ -87,17 +58,40 @@ def main(_):
         first_date = tmp.unique().asof(tmp.min() + dt.timedelta(days=1))
         features = features[features.index.date >= first_date]
 
-        # TODO: deterministic map for distinctTickers, numTrades
+        # discrete tags
+        mapping = {
+            0: 0,
+            1: 1,
+            2: 1,
+            3: 2,
+            4: 2,
+            5: 3,
+            6: 3,
+            7: 4,
+            8: 4,
+            # apply >= 9: 5 in lambda expression
+        }
+        _last_key_in_mapping = max(mapping.keys())
+        _final_tag = max(mapping.values()) + 1
 
-        # tags
 
-        # restrict to notional for now
-        _NOTIONAL_ONLY_FEATURES = [
-            x for x in _FEATURE_NAMES_WITH_MARGINALS if "notional" in x
-        ]
-        features = features[_NOTIONAL_ONLY_FEATURES]
+        # these will be numTrades and distinctTickers
+        discrete_features = features.select_dtypes(include="int").columns
+        discrete_tags = features[discrete_features].map(
+            lambda x: mapping[x] if x <= _last_key_in_mapping else _final_tag
+        )
 
-        tags = pd.DataFrame(index=features.index, columns=_NOTIONAL_ONLY_FEATURES)
+        # continuous features tags
+        continuous_features = features.select_dtypes(include="float").columns
+        features = features[continuous_features]
+
+        # _NOTIONAL_ONLY_FEATURES = [
+        #     x for x in FEATURE_NAMES_WITH_MARGINALS if "notional" in x
+        # ]
+        # features = features[_NOTIONAL_ONLY_FEATURES]
+
+        # NOTE: tags here is continuous tags
+        tags = pd.DataFrame(index=features.index, columns=continuous_features)
 
         for date, group in features.groupby(features.index.date):
             previous_trading_day = (
@@ -125,13 +119,26 @@ def main(_):
                     ),  # tag 0 for (-inf, 0], 1 for (0, Q1] etc...
                     include_lowest=False,  # (-inf, 0.0], (0.0, Q1], (Q1, Q2], ...
                 )
+        
+        tags = tags.astype("int") # so that -1 for iso tag can be assigned
+
+        # merge discrete tags and continuous tags
+        assert tags.index.equals(discrete_tags.index)
+        tags = pd.concat((discrete_tags, tags), axis=1)
 
         # tags other than the quantiles
         _ISOLATED_TAG = -1
+        neighbors = neighbors[neighbors.index.date >= first_date]  # restrict to first date onwards
         tags = neighbors.join(tags, how="left")
-        tags = tags[tags.index.date >= first_date]  # restrict to first date onwards
-        tags.loc[~tags.nonIso, _NOTIONAL_ONLY_FEATURES] = _ISOLATED_TAG
-        tags = tags[_NOTIONAL_ONLY_FEATURES].astype("category")
+        # tags = tags[tags.index.date >= first_date]  # restrict to first date onwards
+        
+        tag_cols = tags.drop(columns=neighbors.columns).columns
+        tags.loc[~tags.nonIso, tag_cols] = _ISOLATED_TAG
+
+        tags = tags.drop(columns=neighbors.columns) # drop columns from neighbors
+
+        # TODO: improve astypes or change the way that isolated tag is assigned
+        tags = tags.astype('int').astype('category') # cannot set as categorical before here
 
         # save to file
         quantiles_dir = eps_dir / "quantiles" / "_".join(map(str, FLAGS.quantiles))
@@ -152,16 +159,16 @@ def main(_):
         tags, how="left"
     )
     full = full[full.index.date >= first_date]  # restrict to first date onwards
-    full.loc[~full.nonIso, _FEATURE_NAMES_WITH_MARGINALS] = _ADDITIONAL_TAGS["iso"]
+    full.loc[~full.nonIso, FEATURE_NAMES_WITH_MARGINALS] = _ADDITIONAL_TAGS["iso"]
     # convert floats to ints for nonIso
-    full.loc[full.nonIso, _FEATURE_NAMES_WITH_MARGINALS] = full.loc[
-        full.nonIso, _FEATURE_NAMES_WITH_MARGINALS
+    full.loc[full.nonIso, FEATURE_NAMES_WITH_MARGINALS] = full.loc[
+        full.nonIso, FEATURE_NAMES_WITH_MARGINALS
     ].astype("int")
-    full = full.astype({col: "category" for col in _FEATURE_NAMES_WITH_MARGINALS})
+    full = full.astype({col: "category" for col in FEATURE_NAMES_WITH_MARGINALS})
 
     # ofi calculation
     ofis_dict = {}
-    for col in _FEATURE_NAMES_WITH_MARGINALS:
+    for col in FEATURE_NAMES_WITH_MARGINALS:
         logging.info(f"computing ofi for {col}")
 
         ofis = full.groupby([full.index.date, full[col]], observed=False).apply(ofi)

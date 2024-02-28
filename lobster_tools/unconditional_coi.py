@@ -1,3 +1,4 @@
+"Temp file to write uncoditional COI. i.e just on whole flow"
 import datetime as dt
 import itertools
 from pathlib import Path
@@ -7,7 +8,7 @@ import pandas as pd
 from absl import app, flags, logging
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
-from lobster_tools.config import _FEATURE_NAMES_WITH_MARGINALS
+from lobster_tools.config import FEATURE_NAMES_WITH_MARGINALS
 
 from lobster_tools.flow import evaluate_features
 
@@ -20,7 +21,8 @@ import lobster_tools.config  # noqa: F401
 FLAGS = flags.FLAGS
 
 
-def ofi(group: pd.DataFrame, resample_freq: str):
+def coi(group: pd.DataFrame, resample_freq: str):
+    "Compute COI (Conditional Order Imbalance) for a sequence of trades."
     return (
         group[["size", "direction"]]
         .eval("signed_size = size * direction")
@@ -32,7 +34,7 @@ def ofi(group: pd.DataFrame, resample_freq: str):
     )
 
 
-def restrict_common_index(
+def restrict_to_common_index(
     df1: pd.DataFrame, df2: pd.DataFrame
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Restrict two dataframes to their common index."""
@@ -47,8 +49,32 @@ def main(_):
     output_dir = Path(FLAGS.output_dir)
     etf_dir = output_dir / "etf" / FLAGS.etf
 
+    # COIs for whole flow
+    etf_executions = pd.read_pickle(etf_dir / "etf_executions.pkl")
+    for resample_freq in FLAGS.resample_freqs:
+        logging.info(f"computing COIs for resample_freq={resample_freq}")
+
+        coi_no_tagging = etf_executions.groupby(etf_executions.index.date, observed=False).apply(
+            coi, resample_freq=resample_freq
+        )
+        coi_no_tagging.index = coi_no_tagging.index.droplevel(0)
+        # cois = cois.unstack(level=0)
+        coi_no_tagging = coi_no_tagging.fillna(0)
+        # cois.columns = cois.columns.tolist()
+
+        # write to disk
+        resample_dir = etf_dir / "resample_freq" / resample_freq
+        resample_dir.mkdir(parents=True, exist_ok=True)
+
+        pd.to_pickle(coi_no_tagging, resample_dir / "coi_no_tagging.pkl")
+    
+    return
+    ####  just doing the whole flow in this file
+    ##############################################################
+
+    # COI for tagged flow
     for epsilon, resample_freq in itertools.product(FLAGS.epsilons, FLAGS.resample_freqs):
-        logging.info(f"computing OFIs for epsilon={epsilon} and resample_freq={resample_freq}")
+        logging.info(f"computing COIs for epsilon={epsilon} and resample_freq={resample_freq}")
 
         #######################################
         eps_dir = etf_dir / "epsilon" / epsilon
@@ -62,25 +88,25 @@ def main(_):
         etf_executions = etf_executions.drop(columns="notional")
         full = etf_executions.join(tags, how="inner")
 
-        # ofi calculation
-        ofis_dict = {}
+        # coi calculation
+        cois_dict = {}
         for col in TAG_COLUMNS:
-            logging.info(f"computing ofi for {col}")
-            ofis = full.groupby([full.index.date, full[col]], observed=False).apply(
-                ofi, resample_freq=resample_freq
+            logging.info(f"computing coi for {col}")
+            coi_no_tagging = full.groupby([full.index.date, full[col]], observed=False).apply(
+                coi, resample_freq=resample_freq
             )
-            ofis.index = ofis.index.droplevel(0)
-            ofis = ofis.unstack(level=0)
-            ofis = ofis.fillna(0)
-            ofis.columns = ofis.columns.tolist()
-            ofis_dict[col] = ofis
+            coi_no_tagging.index = coi_no_tagging.index.droplevel(0)
+            coi_no_tagging = coi_no_tagging.unstack(level=0)
+            coi_no_tagging = coi_no_tagging.fillna(0)
+            coi_no_tagging.columns = coi_no_tagging.columns.tolist()
+            cois_dict[col] = coi_no_tagging
         
         # write to disk
-        resample_dir = lookback_dir / "resample_freq" / resample_freq
-        resample_dir.mkdir(parents=True, exist_ok=True)
+        # TODO: improve structure of writing files to disk
+        resample2_dir = lookback_dir / "resample_freq" / resample_freq
+        resample2_dir.mkdir(parents=True, exist_ok=True)
 
-        print(ofis_dict)
-        pd.to_pickle(ofis_dict, resample_dir / "ofis.pkl")
+        pd.to_pickle(cois_dict, resample2_dir / "cois.pkl")
 
     return
     ##############################################################
@@ -92,13 +118,13 @@ def main(_):
     returns = pd.read_pickle(resample_dir / "returns.pkl")
 
     # univariate regressions
-    for feature, df in ofis_dict.items():
+    for feature, df in cois_dict.items():
         results = []
         for tag, ser in df.items():
             # TODO: only drop na if necessary
             ser = ser.dropna()
             returns = returns.dropna()
-            X, Y = restrict_common_index(ser, returns)
+            X, Y = restrict_to_common_index(ser, returns)
             X = X.values.reshape(-1, 1)
             model = LinearRegression()
             model.fit(X, Y)
@@ -126,11 +152,11 @@ def main(_):
     # multivariate regression
     logging.info("running multivariate regressions")
     results_dict = {}
-    for feature_name, ofis in ofis_dict.items():
-        ofis = ofis.dropna()
+    for feature_name, coi_no_tagging in cois_dict.items():
+        coi_no_tagging = coi_no_tagging.dropna()
         returns = returns.dropna()
 
-        X, Y = restrict_common_index(ofis, returns)
+        X, Y = restrict_to_common_index(coi_no_tagging, returns)
         model = LinearRegression()
         model.fit(X, Y)
         Y_hat: np.ndarray = model.predict(X)
