@@ -1,12 +1,11 @@
-import sys
 from decimal import Decimal
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from absl import app, flags, logging
+from absl import app, flags
 
 from lobster_tools import config  # noqa: F401
+from lobster_tools.utils import get_dir
 
 FLAGS = flags.FLAGS
 
@@ -14,10 +13,10 @@ FLAGS = flags.FLAGS
 MARKOUTS = [Decimal(x) for x in ["0.125", "0.25", "0.5", "1.0", "2.0", "4.0"]]
 
 
-def resampled_log_returns(group, resample_freq: str, markouts: list[Decimal]):
-    """Markouts computed from base and markout series. Base timeseries using last value
-    in ( ] and stamped right. Marked out price is first value of shifted ( ] stamped
-    left."""
+def get_log_returns(group, resample_freq: str, markouts: list[Decimal]):
+    """Compute resampled log returns. Markouts computed from base and markout series. 
+    Base timeseries using last value in ( ] and stamped right. Marked out price is first
+    value of shifted ( ] stamped left."""
     base_offset = pd.Timedelta("0S")
     base_resampled = group.price.resample(
         resample_freq, label="right", closed="right", offset=base_offset
@@ -45,31 +44,29 @@ def resampled_log_returns(group, resample_freq: str, markouts: list[Decimal]):
 
 
 def main(_):
-    # output directories
-    output_dir = Path(FLAGS.output_dir)
-    etf_dir = output_dir / "etf" / FLAGS.etf
-
-    logging.get_absl_handler().use_absl_log_file(log_dir=etf_dir)
-    sys.stderr = logging.get_absl_handler().python_handler.stream
-
-    logging.info(f"FLAGS: {FLAGS}")
-
     # TODO: load from arctic and use mid to mid
-    etf_executions = pd.read_pickle(etf_dir / "etf_executions.pkl")
+    dir_ = get_dir(etf=FLAGS.etf)
+    etf_executions = pd.read_pickle(dir_ / "etf_executions.pkl")
 
     for resample_freq in FLAGS.resample_freqs:
-        resample_dir = etf_dir / "resample_freq" / resample_freq
-        resample_dir.mkdir(parents=True, exist_ok=True)
-
-        returns = etf_executions.groupby(etf_executions.index.date).apply(
-            resampled_log_returns,
-            resample_freq=resample_freq,
-            markouts=MARKOUTS,
+        # intraday log returns
+        returns = (
+            etf_executions.groupby(etf_executions.index.date)
+            .apply(
+                get_log_returns,
+                resample_freq=resample_freq,
+                markouts=MARKOUTS,
+            )
+            .droplevel(0)
         )
-        returns.index = returns.index.droplevel(0)
 
         # save to disk
-        returns.to_pickle(resample_dir / "returns.pkl")
+        dir_ = get_dir(
+            etf=FLAGS.etf,
+            resample_freq=resample_freq,
+        )
+        dir_.mkdir(exist_ok=True)
+        returns.to_pickle(dir_ / "returns.pkl")
 
         # TODO: hedged returns
 

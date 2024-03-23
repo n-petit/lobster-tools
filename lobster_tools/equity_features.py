@@ -12,6 +12,7 @@ from lobster_tools.config import _FEATURE_FUNCTIONS, _FEATURE_NAMES, ETF_TO_EQUI
 from lobster_tools.preprocessing import Event, EventGroup
 
 import lobster_tools.config  # noqa: F401
+from lobster_tools.utils import get_dir
 
 flags.DEFINE_list(
     "date_range",
@@ -241,6 +242,10 @@ def main(_):
         # save to disk
         eps_dir = etf_dir / "epsilon" / epsilon
         eps_dir.mkdir(parents=True)
+
+        # refactor
+        res_dir = get_dir(etf=FLAGS.etf, epsilon=epsilon)
+        res_dir.mkdir(parents=True, exist_ok=True)
 
         neighbors.to_pickle(eps_dir / "neighbors.pkl")
         features.to_pickle(eps_dir / "features.pkl")

@@ -1,21 +1,18 @@
-import datetime as dt
-import itertools
+import itertools as it
 from pathlib import Path
+import textwrap
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from absl import app, flags, logging
+from matplotlib.backends.backend_pdf import PdfPages
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
-from lobster_tools.config import FEATURE_NAMES_WITH_MARGINALS
 
-from lobster_tools.flow import evaluate_features
-
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-from lobster_tools import returns, tagging  # noqa: F401
 import lobster_tools.config  # noqa: F401
+from lobster_tools import returns, tagging  # noqa: F401
 
 FLAGS = flags.FLAGS
 
@@ -35,33 +32,33 @@ def main(_):
     output_dir = Path(FLAGS.output_dir)
     etf_dir = output_dir / "etf" / FLAGS.etf
 
-    for epsilon, resample_freq in itertools.product(
-        FLAGS.epsilons, FLAGS.resample_freqs
-    ):
+    for epsilon, resample_freq in it.product(FLAGS.epsilons, FLAGS.resample_freqs):
         logging.info("flags.FLAGS: ", FLAGS)
 
         eps_dir = etf_dir / "epsilon" / epsilon
         quantile_dir = eps_dir / "quantiles" / "_".join(map(str, FLAGS.quantiles))
         lookback_dir = quantile_dir / "lookback" / str(FLAGS.lookback)
-        resample_dir2 = lookback_dir / "resample_freq" / resample_freq
+        lookback_resample_dir = lookback_dir / "resample_freq" / resample_freq
 
-        cois_dict = pd.read_pickle(
-            resample_dir2 / "cois.pkl"
+        # dict of {feature_name: df_coi_per_tag}
+        cois_dict: dict[str, pd.DataFrame] = pd.read_pickle(
+            lookback_resample_dir / "cois.pkl"
         )
 
-        # TODO: better folder structure
         resample_dir = etf_dir / "resample_freq" / resample_freq
         returns = pd.read_pickle(resample_dir / "returns.pkl")
 
-        res_dict = {}
-        for feature, coi_df in cois_dict.items():
+        def get_univariate_regression_results(coi: pd.DataFrame, returns: pd.DataFrame):
+            """For a given feature, compute univariate regressions for each tag in `coi`
+            and for each markout in `returns`."""
             results = []
-            for tag, ofi_ser in coi_df.items():
-                ofi_ser = ofi_ser.dropna()
+            for tag, coi_ser in coi.items():
+                coi_ser = coi_ser.dropna()
                 for markout, return_ser in returns.items():
                     return_ser = return_ser.dropna()
-                    X, Y = restrict_common_index(ofi_ser, return_ser)
+                    X, Y = restrict_common_index(coi_ser, return_ser)
                     X = X.values.reshape(-1, 1)
+                    # NOTE: need to be separate models due to different NaNs in returns
                     model = LinearRegression()
                     model.fit(X, Y)
                     Y_hat = model.predict(X)
@@ -75,53 +72,209 @@ def main(_):
                         }
                     )
             results = pd.DataFrame(results)
-            res_dict[feature] = results
+            return results
 
+        univariate_regression_results_dict = {
+            feature: get_univariate_regression_results(coi, returns)
+            for feature, coi in cois_dict.items()
+        }
 
-        # feature_dir = (
-        #     lookback_dir / "resample_freq" / resample_freq / "feature" / feature
-        # )
-        # feature_dir.mkdir(parents=True, exist_ok=True)
-        # results.to_pickle(feature_dir / "results.pkl")
+        # no tagging
+        coi_no_tagging = pd.read_pickle(
+            etf_dir / "resample_freq" / resample_freq / "coi_no_tagging.pkl"
+        )
 
+        def get_untagged_regression_results(
+            coi_no_tagging: pd.Series, returns: pd.DataFrame
+        ):
+            """Compute univariate regressions for each markout in `returns`. Used for
+            a pd.Series of untagged COIs."""
+            results = []
+            for markout, return_ser in returns.items():
+                return_ser = return_ser.dropna()
+                X, Y = restrict_common_index(coi_no_tagging, return_ser)
+                X = X.values.reshape(-1, 1)
+                model = LinearRegression()
+                model.fit(X, Y)
+                Y_hat = model.predict(X)
+                score = r2_score(Y, Y_hat)
 
+                results.append(
+                    {
+                        "markout": markout,
+                        "score": score,
+                    }
+                )
+            results = pd.DataFrame(results)
+            results = results.set_index("markout", drop=True)
+            return results
+
+        untagged_regression_results = get_untagged_regression_results(
+            coi_no_tagging, returns
+        )
+        untagged_regression_results.to_pickle(
+            etf_dir
+            / "resample_freq"
+            / resample_freq
+            / "untagged_regression_results.pkl"
+        )
+
+        # increase in R2 score relative to COIs computed on untagged flow
+        def assign_delta_score(
+            results: pd.DataFrame, untagged_regression_results: pd.DataFrame
+        ):
+            results = results.merge(
+                untagged_regression_results, on="markout", suffixes=("", "_untagged")
+            )
+            results["delta_score"] = results["score"] - results["score_untagged"]
+            return results
+
+        # with delta score assined
+        univariate_regression_results_dict = {
+            feature: assign_delta_score(
+                univariate_regression_results, untagged_regression_results
+            )
+            for feature, univariate_regression_results in univariate_regression_results_dict.items()
+        }
+
+        pd.to_pickle(
+            univariate_regression_results_dict,
+            lookback_resample_dir / "univariate_regressions.pkl",
+        )
+
+        # TODO: move plots to separate file after?
         plot_dir = etf_dir / "plots"
         plot_dir.mkdir(parents=True, exist_ok=True)
 
-        for feature, df in res_dict.items():
-            p = sns.catplot(data=df, x='markout', y='score', hue='tag', kind='bar')
-            p.set(title=feature)
-            p.set_xticklabels(rotation=45)
-            plt.savefig(plot_dir / f"{feature}_univariate_regressions.png")
+        # def plot_delta_scores(feature, df: pd.DataFrame):
+        #     p = sns.catplot(
+        #         data=df, x="markout", y="delta_score", hue="tag", kind="bar"
+        #     )
+        #     p.set(title=feature)
+        #     p.set_xticklabels(rotation=45)
+        #     plt.savefig(plot_dir / f"{feature}.png")
 
+        # for (
+        #     feature,
+        #     univariate_regression_results,
+        # ) in univariate_regression_results_dict.items():
+        #     plot_delta_scores(feature, univariate_regression_results)
 
+        # for generating a single pdf with each page as
+        # def plot_delta_scores(feature, df: pd.DataFrame):
+        #     p = sns.catplot(
+        #         data=df, x="markout", y="delta_score", hue="tag", kind="bar"
+        #     )
+        #     p.set(title=feature)
+        #     p.set_xticklabels(rotation=45)
+        #     plt.subplots_adjust(bottom=0.2, top=0.9) # title was being cutoff
+        #     return p.figure
 
-        # no tagging
-        ofi_ser = pd.read_pickle(etf_dir / "resample_freq" / resample_freq / "coi_no_tagging.pkl")
+        # with PdfPages(plot_dir / 'all_plots.pdf') as pdf:
+        #     for feature, univariate_regression_results in univariate_regression_results_dict.items():
+        #         fig = plot_delta_scores(feature, univariate_regression_results)
+        #         pdf.savefig(fig)
+        #         plt.close(fig)
+
+        # same as above but with subplots
+        def plot_delta_scores(ax, feature, df: pd.DataFrame):
+
+            # NOTE: not using this at the moment
+            # plot pct increase in R2 scores for each tag
+            # df = df.eval('pct_change_score = delta_score / score_untagged')
+            # p = sns.barplot(
+            #     data=df, x="markout", y="pct_change_score", hue="tag", ax=ax, palette="Dark2"
+            # )
+
+            # plot delta of R2 scores for each tag
+            p = sns.barplot(
+                data=df, x="markout", y="score", hue="tag", ax=ax, palette="Dark2"
+            )
+            
+            # set title and rotate x-axis labels
+            ax.set_title(feature)
+            plt.setp(ax.get_xticklabels(), rotation=45)
+
+        pdf_plot_nrows = 7
+        pdf_plot_ncols = 4
+
+        plot_name = f"score_etf_{FLAGS.etf}_resample_freq_{resample_freq}_epsilon_{epsilon}_lookback_{FLAGS.lookback}_quantiles_{FLAGS.quantiles}"
+        with PdfPages(plot_dir / f"{plot_name}.pdf") as pdf:
+            fig, axs = plt.subplots(pdf_plot_nrows, pdf_plot_ncols, figsize=(20, 30))
+            axs = axs.flatten()
+            for ax, (feature, univariate_regression_results) in zip(
+                axs, univariate_regression_results_dict.items()
+            ):
+                plot_delta_scores(ax, feature, univariate_regression_results)
+
+            # store info about plot store in last axs ojbect
+            ax_title = axs[-1]
+            ax_title.text(
+                0.5,
+                0.5,
+                textwrap.dedent(\
+                    f"""
+                    ETF: {FLAGS.etf}
+                    resample_freq: {resample_freq}
+                    epsilon: {epsilon}
+                    lookback: {FLAGS.lookback}
+                    quantiles: {FLAGS.quantiles}
+                    """),
+                ha="center",
+                va="center",
+                fontsize=24,
+            )
+            ax_title.axis("off")
+
+            # set layout and save
+            plt.tight_layout()
+            pdf.savefig(fig)
+            plt.close(fig)
+    return
+
+    # TODO: plot multivariate also
+    # TOOD: plot bars of univariate from the base R2 scores
+    
+    # multivariate regression
+    logging.info("running multivariate regressions")
+
+    def get_multivariate_regression_results(coi: pd.DataFrame, returns: pd.DataFrame):
+        """For a given feature, compute multivariate regressions using all COIs for
+        each tag to regress against a single markout."""
         results = []
         for markout, return_ser in returns.items():
             return_ser = return_ser.dropna()
-            X, Y = restrict_common_index(ofi_ser, return_ser)
-            X = X.values.reshape(-1, 1)
+            X, Y = restrict_common_index(coi, return_ser)
+
+            # X = X.values.reshape(-1, 1) # no need to reshape for multivariate
+            # NOTE: need to be separate models due to different NaNs in returns
             model = LinearRegression()
             model.fit(X, Y)
             Y_hat = model.predict(X)
             score = r2_score(Y, Y_hat)
 
-            results.append(
-                {
-                    "markout": markout,
-                    "score": score,
-                }
-            )
+            n, p = X.shape
+            adj_score = 1 - (1 - score) * (n - 1) / (n - p - 1)
+
+            results.append({"markout": markout, "score": score, "adj_score": adj_score})
+
         results = pd.DataFrame(results)
+        results = results.set_index("markout", drop=True)
+        return results
 
-        fig = plt.figure()
-        sns.barplot(results, y='score', x='markout')
-        plt.savefig(plot_dir / f"no_tagging_univariate_regressions.png")
+    multivariate_regression_results_dict = {
+        feature: get_multivariate_regression_results(coi, returns)
+        for feature, coi in cois_dict.items()
+    }
 
-    
+    pd.to_pickle(
+        multivariate_regression_results_dict,
+        lookback_resample_dir / "multivariate_regressions.pkl",
+    )
+
     return
+
+    # still keeping here because of multivariate regression computation
     ##############################################################
     # moved to regressions.py
     ##############################################################
@@ -131,11 +284,11 @@ def main(_):
     # univariate regressions
     for feature, coi_df in ofis_dict.items():
         results = []
-        for tag, ofi_ser in coi_df.items():
+        for tag, coi_no_tagging in coi_df.items():
             # TODO: only drop na if necessary
-            ofi_ser = ofi_ser.dropna()
+            coi_no_tagging = coi_no_tagging.dropna()
             returns = returns.dropna()
-            X, Y = restrict_common_index(ofi_ser, returns)
+            X, Y = restrict_common_index(coi_no_tagging, returns)
             X = X.values.reshape(-1, 1)
             model = LinearRegression()
             model.fit(X, Y)
@@ -164,7 +317,7 @@ def main(_):
 
     # multivariate regression
     logging.info("running multivariate regressions")
-    results_dict = {}
+    univariate_regression_results_dict = {}
     for feature_name, ofis in ofis_dict.items():
         ofis = ofis.dropna()
         returns = returns.dropna()
@@ -191,9 +344,9 @@ def main(_):
         results = pd.DataFrame.from_dict(
             results, orient="index", columns=["r2", "coef", "intercept"]
         )
-        results_dict[feature_name] = results
+        univariate_regression_results_dict[feature_name] = results
 
-    results_dict
+    univariate_regression_results_dict
     print("done")
 
 
