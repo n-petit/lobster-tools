@@ -18,7 +18,7 @@ import pandas as pd
 
 @enum.unique
 class Event(enum.Enum):
-    "A class to represent the event type of a LOBSTER message."
+    "Event types for LOBSTER messages."
     UNKNOWN = 0
     SUBMISSION = 1
     CANCELLATION = 2
@@ -187,17 +187,17 @@ def _aggregate_duplicates(df: pd.DataFrame) -> pd.DataFrame:
 
 def clip_times(
     df: pd.DataFrame,
-    start: datetime.time | None = None,
+    time: datetime.time | None = None,
     end: datetime.time | None = None,
 ) -> pd.DataFrame:
     """Clip a dataframe or lobster object to a time range."""
     if not isinstance(df.index, pd.DatetimeIndex):
         raise TypeError("Expected a dataframe with a datetime index")
 
-    if start and end:
-        return df.iloc[(df.index.time >= start) & (df.index.time < end)]
-    elif start:
-        return df.iloc[df.index.time >= start]
+    if time and end:
+        return df.iloc[(df.index.time >= time) & (df.index.time < end)]
+    elif time:
+        return df.iloc[df.index.time >= time]
     elif end:
         return df.iloc[df.index.time < end]
     else:
